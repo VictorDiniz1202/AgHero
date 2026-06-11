@@ -372,6 +372,22 @@ export async function obterLotesInativos(id_fazenda) {
 }
 
 /**
+ * Atualiza o plano vacinal customizado de um lote específico.
+ * @param {string} id_fazenda
+ * @param {string} id_lote
+ * @param {Array} planoVacinal
+ */
+export async function atualizarPlanoVacinalLote(id_fazenda, id_lote, planoVacinal) {
+  try {
+    const loteRef = doc(db, 'fazendas', id_fazenda, 'lotes', id_lote);
+    await updateDoc(loteRef, { plano_vacinal: planoVacinal });
+  } catch (error) {
+    console.error(`[Firestore] Falha ao atualizar plano vacinal do lote ${id_lote}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Obtém todos os registros diários de um lote específico, ordenados por data.
  *
  * Diferente de `obterUltimosRegistros` (que pagina os registros mais recentes

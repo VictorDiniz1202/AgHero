@@ -5,7 +5,9 @@ import {
   obterFazenda,
   obterRegistrosSanitarios,
   salvarRegistroSanitario,
+  atualizarPlanoVacinalLote,
 } from '../firebase/services';
+import { BANCO_VACINAS } from '../data/bancoVacinas';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Planos Vacinais Padrão (referência zootécnica simplificada)
@@ -50,17 +52,23 @@ export function calcularIdadeLote(dataAlojamento) {
 }
 
 /**
- * Retorna a lista de itens do plano vacinal padrão que já passaram da idade
+ * Retorna a lista de itens do plano vacinal que já passaram da idade
  * programada e ainda não possuem registro de aplicação.
  */
-export function obterVacinasAtrasadas(tipoProducao, idadeDias, registrosSanitarios) {
-  const plano = VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
+export function obterVacinasAtrasadas(tipoProducao, idadeDias, registrosSanitarios, planoCustomizado) {
+  const plano = planoCustomizado || VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
   return plano.filter((item) => {
     const aplicada = (registrosSanitarios || []).some(
       (r) => r.tipo === 'vacina' && r.nome === item.nome && r.status === 'aplicada'
     );
-    return !aplicada && idadeDias > item.idade_dias;
+    return !appliedCheck(registrosSanitarios, item.nome) && idadeDias > item.idade_dias;
   });
+}
+
+function appliedCheck(registrosSanitarios, nomeVacina) {
+  return (registrosSanitarios || []).some(
+    (r) => r.tipo === 'vacina' && r.nome.toLowerCase().includes(nomeVacina.toLowerCase()) && r.status === 'aplicada'
+  );
 }
 
 function dataHojeStr() {
@@ -88,6 +96,10 @@ export default function ManejoSanitario({ id_fazenda, onVoltar }) {
   const [suspeita, setSuspeita] = useState('');
   const [observacoesSintomas, setObservacoesSintomas] = useState('');
 
+  // Busca e agendamento de vacinas
+  const [buscaVacina, setBuscaVacina] = useState('');
+  const [vacinaAgendadaForm, setVacinaAgendadaForm] = useState({ nome: '', idade_dias: '', via: 'agua' });
+
   // Carrega lotes ativos
   useEffect(() => {
     if (!id_fazenda) return undefined;
@@ -112,6 +124,25 @@ export default function ManejoSanitario({ id_fazenda, onVoltar }) {
     return () => { ativo = false; };
   }, [id_fazenda]);
 
+  const loteAtual = lotes?.find((l) => l.id === loteSelecionadoId);
+  const idadeDias = loteAtual ? calcularIdadeLote(loteAtual.data_alojamento) : 0;
+
+  // Inicializa o plano vacinal do lote se não houver no Firestore
+  useEffect(() => {
+    if (!id_fazenda || !loteSelecionadoId || !lotes || !tipoProducao) return;
+    const lote = lotes.find((l) => l.id === loteSelecionadoId);
+    if (lote && !lote.plano_vacinal) {
+      const planoDefault = VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
+      atualizarPlanoVacinalLote(id_fazenda, loteSelecionadoId, planoDefault)
+        .then(() => {
+          setLotes((prev) =>
+            prev.map((l) => (l.id === loteSelecionadoId ? { ...l, plano_vacinal: planoDefault } : l))
+          );
+        })
+        .catch((err) => console.error('[ManejoSanitario] Falha ao inicializar plano vacinal do lote:', err));
+    }
+  }, [id_fazenda, loteSelecionadoId, lotes, tipoProducao]);
+
   // Carrega registros sanitários do lote selecionado
   useEffect(() => {
     if (!id_fazenda || !loteSelecionadoId) return undefined;
@@ -132,16 +163,82 @@ export default function ManejoSanitario({ id_fazenda, onVoltar }) {
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  const loteAtual = lotes?.find((l) => l.id === loteSelecionadoId);
-  const idadeDias = loteAtual ? calcularIdadeLote(loteAtual.data_alojamento) : 0;
-  const planoVacinal = VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
+  const planoVacinal = loteAtual?.plano_vacinal || VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
 
   function statusVacina(item) {
-    const aplicada = registros.find((r) => r.tipo === 'vacina' && r.nome === item.nome && r.status === 'aplicada');
+    const aplicada = registros.find((r) => r.tipo === 'vacina' && r.nome.toLowerCase().includes(item.nome.toLowerCase()) && r.status === 'aplicada');
     if (aplicada) return { status: 'aplicada', registro: aplicada };
     if (idadeDias > item.idade_dias) return { status: 'atrasada' };
     if (idadeDias === item.idade_dias) return { status: 'hoje' };
     return { status: 'pendente' };
+  }
+
+  function lidarComSelecaoBanco(vacina) {
+    setVacinaAgendadaForm({
+      nome: vacina.nome,
+      idade_dias: vacina.idade_recomendada,
+      via: vacina.via,
+    });
+    setBuscaVacina('');
+  }
+
+  function handleAgendarVacina() {
+    if (!loteSelecionadoId) {
+      setFeedback({ tipo: 'erro', mensagem: 'Selecione um lote primeiro.' });
+      return;
+    }
+    if (!vacinaAgendadaForm.nome.trim()) {
+      setFeedback({ tipo: 'erro', mensagem: 'O nome da vacina é obrigatório.' });
+      return;
+    }
+    const idadeNum = Number(vacinaAgendadaForm.idade_dias);
+    if (Number.isNaN(idadeNum) || idadeNum <= 0) {
+      setFeedback({ tipo: 'erro', mensagem: 'A idade planejada deve ser maior que zero.' });
+      return;
+    }
+
+    const novoItem = {
+      nome: vacinaAgendadaForm.nome.trim(),
+      idade_dias: idadeNum,
+      via: vacinaAgendadaForm.via,
+    };
+
+    const planoAtual = loteAtual?.plano_vacinal || VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
+    const novoPlano = [...planoAtual.filter((v) => v.nome.toLowerCase() !== novoItem.nome.toLowerCase()), novoItem].sort(
+      (a, b) => a.idade_dias - b.idade_dias
+    );
+
+    atualizarPlanoVacinalLote(id_fazenda, loteSelecionadoId, novoPlano)
+      .then(() => {
+        setLotes((prev) =>
+          prev.map((l) => (l.id === loteSelecionadoId ? { ...l, plano_vacinal: novoPlano } : l))
+        );
+        setFeedback({ tipo: 'sucesso', mensagem: `Vacina "${novoItem.nome}" agendada com sucesso!` });
+        setVacinaAgendadaForm({ nome: '', idade_dias: '', via: 'agua' });
+        setBuscaVacina('');
+      })
+      .catch((err) => {
+        console.error('[ManejoSanitario] Falha ao agendar vacina:', err);
+        setFeedback({ tipo: 'erro', mensagem: 'Não foi possível agendar a vacina.' });
+      });
+  }
+
+  function handleRemoverVacina(nomeVacina) {
+    if (!loteSelecionadoId) return;
+    const planoAtual = loteAtual?.plano_vacinal || VACINAS_PADRAO[tipoProducao] || VACINAS_PADRAO.Corte;
+    const novoPlano = planoAtual.filter((v) => v.nome.toLowerCase() !== nomeVacina.toLowerCase());
+
+    atualizarPlanoVacinalLote(id_fazenda, loteSelecionadoId, novoPlano)
+      .then(() => {
+        setLotes((prev) =>
+          prev.map((l) => (l.id === loteSelecionadoId ? { ...l, plano_vacinal: novoPlano } : l))
+        );
+        setFeedback({ tipo: 'sucesso', mensagem: 'Vacina removida do cronograma.' });
+      })
+      .catch((err) => {
+        console.error('[ManejoSanitario] Falha ao remover vacina:', err);
+        setFeedback({ tipo: 'erro', mensagem: 'Não foi possível remover a vacina.' });
+      });
   }
 
   function adicionarRegistroLocal(registro) {
@@ -332,23 +429,36 @@ export default function ManejoSanitario({ id_fazenda, onVoltar }) {
                         Programada: dia {item.idade_dias} • {VIA_LABELS[item.via]}
                       </p>
                     </div>
-                    {status === 'aplicada' ? (
-                      <span className="text-[10px] font-bold text-agriAlert-green bg-agriAlert-green/10 border border-agriAlert-green/20 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
-                        ✓ Aplicada {registro?.data_str ? `(${registro.data_str.split('-').reverse().join('/')})` : ''}
-                      </span>
-                    ) : status === 'atrasada' ? (
-                      <span className="text-[10px] font-bold text-agriAlert-red bg-agriAlert-red/10 border border-agriAlert-red/20 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse whitespace-nowrap">
-                        Atrasada
-                      </span>
-                    ) : status === 'hoje' ? (
-                      <span className="text-[10px] font-bold text-agriAlert-orange bg-agriAlert-orange/10 border border-agriAlert-orange/20 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
-                        Hoje
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-forest-light bg-white/50 border border-white/60 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
-                        Pendente
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {status === 'aplicada' ? (
+                        <span className="text-[10px] font-bold text-agriAlert-green bg-agriAlert-green/10 border border-agriAlert-green/20 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
+                          ✓ Aplicada {registro?.data_str ? `(${registro.data_str.split('-').reverse().join('/')})` : ''}
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          {status === 'atrasada' ? (
+                            <span className="text-[10px] font-bold text-agriAlert-red bg-agriAlert-red/10 border border-agriAlert-red/20 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse whitespace-nowrap">
+                              Atrasada
+                            </span>
+                          ) : status === 'hoje' ? (
+                            <span className="text-[10px] font-bold text-agriAlert-orange bg-agriAlert-orange/10 border border-agriAlert-orange/20 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
+                              Hoje
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-forest-light bg-white/50 border border-white/60 px-2.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
+                              Pendente
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleRemoverVacina(item.nome)}
+                            title="Remover do plano"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-agriAlert-red hover:bg-agriAlert-red/10 border border-transparent hover:border-agriAlert-red/20 transition-all"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {status !== 'aplicada' && (
@@ -419,6 +529,102 @@ export default function ManejoSanitario({ id_fazenda, onVoltar }) {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* Agendar Nova Vacina */}
+        <section className="glass-panel p-4 rounded-2xl shadow-sm border border-white/60">
+          <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide mb-3 flex items-center gap-2">
+            <span className="text-lg">📅</span> Agendar Nova Vacina
+          </h2>
+          <div className="space-y-3">
+            {/* Campo de Busca no Banco */}
+            <div className="relative">
+              <label className="text-[10px] font-bold text-forest-light uppercase tracking-wider mb-1 block">Buscar no Banco de Vacinas</label>
+              <input
+                type="text"
+                placeholder="Pesquisar por nome ou doença..."
+                value={buscaVacina}
+                onChange={(e) => setBuscaVacina(e.target.value)}
+                className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 placeholder:text-forest-light/50"
+              />
+              
+              {/* Resultados da busca */}
+              {buscaVacina.trim() !== '' && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-white/60 bg-white/95 p-2 shadow-xl backdrop-blur-xl">
+                  {BANCO_VACINAS.filter(v => 
+                    v.nome.toLowerCase().includes(buscaVacina.toLowerCase()) ||
+                    v.doenca.toLowerCase().includes(buscaVacina.toLowerCase())
+                  ).length === 0 ? (
+                    <p className="text-xs font-semibold text-forest-light p-3 text-center">Nenhuma vacina encontrada. Digite abaixo para cadastrar uma personalizada.</p>
+                  ) : (
+                    BANCO_VACINAS.filter(v => 
+                      v.nome.toLowerCase().includes(buscaVacina.toLowerCase()) ||
+                      v.doenca.toLowerCase().includes(buscaVacina.toLowerCase())
+                    ).map(v => (
+                      <button
+                        key={v.nome}
+                        type="button"
+                        onClick={() => lidarComSelecaoBanco(v)}
+                        className="w-full text-left p-2.5 rounded-lg hover:bg-forest-light/10 active:bg-forest-light/20 transition-colors border-b border-forest-light/5 last:border-b-0"
+                      >
+                        <p className="text-xs font-bold text-forest-dark">{v.nome}</p>
+                        <p className="text-[10px] font-semibold text-forest-light/80 mt-0.5">{v.doenca} · Recomendado: dia {v.idade_recomendada}</p>
+                        <p className="text-[9px] text-forest-light font-medium mt-0.5 line-clamp-1">{v.descricao}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Formulário de Agendamento */}
+            <div className="rounded-xl border border-white/50 bg-white/40 p-3.5 space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-forest-light uppercase tracking-wider mb-1 block font-heading">Nome da Vacina</label>
+                <input
+                  type="text"
+                  placeholder="Nome da vacina..."
+                  value={vacinaAgendadaForm.nome}
+                  onChange={(e) => setVacinaAgendadaForm(prev => ({ ...prev, nome: e.target.value }))}
+                  className="w-full rounded-xl border border-white/50 bg-white/60 p-2.5 text-xs font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-forest-light uppercase tracking-wider mb-1 block font-heading">Idade (dias)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 7"
+                    value={vacinaAgendadaForm.idade_dias}
+                    onChange={(e) => setVacinaAgendadaForm(prev => ({ ...prev, idade_dias: e.target.value }))}
+                    className="w-full rounded-xl border border-white/50 bg-white/60 p-2.5 text-xs font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-forest-light uppercase tracking-wider mb-1 block font-heading">Via</label>
+                  <select
+                    value={vacinaAgendadaForm.via}
+                    onChange={(e) => setVacinaAgendadaForm(prev => ({ ...prev, via: e.target.value }))}
+                    className="w-full rounded-xl border border-white/50 bg-white/60 p-2.5 text-xs font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50"
+                  >
+                    <option value="agua">Água 💧</option>
+                    <option value="spray">Spray 💨</option>
+                    <option value="injecao">Injeção 💉</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAgendarVacina}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-xs font-bold text-white shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all"
+              >
+                Adicionar ao Plano Vacinal
+              </button>
+            </div>
           </div>
         </section>
 

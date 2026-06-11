@@ -729,7 +729,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
 
   // 4. Vacinas atrasadas no plano sanitário (Manejo Sanitário)
   const vacinasAtrasadas = loteAtual
-    ? obterVacinasAtrasadas(aptidao === 'postura' ? 'Postura' : 'Corte', idadeDias, registrosSanitarios)
+    ? obterVacinasAtrasadas(aptidao === 'postura' ? 'Postura' : 'Corte', idadeDias, registrosSanitarios, loteAtual.plano_vacinal)
     : [];
   if (vacinasAtrasadas.length > 0) {
     alertas.push({
@@ -819,7 +819,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   const idadeCiclo = aptidao === 'postura' ? idadeSemanas : idadeDias;
 
   // Plano vacinal adaptado (marcos interativos 💉 na linha do tempo)
-  const planoVacinal = VACINAS_PADRAO[aptidao === 'postura' ? 'Postura' : 'Corte'] || VACINAS_PADRAO.Corte;
+  const planoVacinal = loteAtual?.plano_vacinal || VACINAS_PADRAO[aptidao === 'postura' ? 'Postura' : 'Corte'] || VACINAS_PADRAO.Corte;
 
   const [menuAberto, setMenuAberto] = useState(false);
 

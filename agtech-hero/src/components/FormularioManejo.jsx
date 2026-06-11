@@ -22,9 +22,9 @@ const VALORES_INICIAIS = {
   agua_litros: 0,
   racao_kg: 0,
   mortalidade_qtd: 0,
-  temp_max: 0,
-  temp_min: 0,
-  umidade_relativa: 0,
+  temp_max: '',
+  temp_min: '',
+  umidade_relativa: '',
   peso_medio_g: 0,
   producao_ovos_qtd: 0,
   ovos_descarte_qtd: 0,
@@ -187,7 +187,7 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
       return;
     }
 
-    const camposNumericos = ['agua_litros', 'racao_kg', 'mortalidade_qtd', 'temp_max', 'temp_min', 'umidade_relativa', 'peso_medio_g'];
+    const camposNumericos = ['agua_litros', 'racao_kg', 'mortalidade_qtd', 'peso_medio_g'];
     if (aptidaoAtual === 'postura') {
       camposNumericos.push('producao_ovos_qtd', 'ovos_descarte_qtd');
     }
@@ -201,12 +201,30 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
       dados[campo] = numero;
     }
 
-    if (dados.temp_max < dados.temp_min) {
+    // Campos climáticos opcionais
+    const camposOpcionais = ['temp_max', 'temp_min', 'umidade_relativa'];
+    for (const campo of camposOpcionais) {
+      const valorBruto = valores[campo];
+      if (valorBruto !== '' && valorBruto !== null && valorBruto !== undefined) {
+        const numero = Number(valorBruto);
+        if (Number.isNaN(numero)) {
+          setFeedback({ tipo: 'erro', mensagem: 'Verifique os campos de temperatura e umidade: devem ser números.' });
+          return;
+        }
+        dados[campo] = numero;
+      } else {
+        dados[campo] = null;
+      }
+    }
+
+    if (dados.temp_max !== null && dados.temp_min !== null && dados.temp_max < dados.temp_min) {
       setFeedback({ tipo: 'erro', mensagem: 'A temperatura máxima não pode ser menor que a mínima.' });
       return;
     }
 
-    const itu = calcularITU(dados.temp_max, dados.umidade_relativa);
+    const itu = (dados.temp_max !== null && dados.umidade_relativa !== null)
+      ? calcularITU(dados.temp_max, dados.umidade_relativa)
+      : null;
     if (itu !== null) {
       dados.itu = itu;
     }
@@ -466,6 +484,10 @@ function CampoContador({ id, label, unidade, value, step, min, max, onChange }) 
   }
 
   function lidarComSaidaDeFoco() {
+    if (value === '') {
+      onChange('');
+      return;
+    }
     const numero = Number(value);
     onChange(aplicarLimites(Number.isNaN(numero) ? 0 : numero));
   }

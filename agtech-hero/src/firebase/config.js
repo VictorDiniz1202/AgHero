@@ -1,7 +1,7 @@
 /**
  * src/firebase/config.js
  *
- * Inicialização central do Firebase para o Agtech.
+ * Inicialização central do Firebase para o AgHero.
  *
  * CONTEXTO (Offline-First):
  * O app é usado em propriedades rurais com conexão de internet instável ou
@@ -65,10 +65,10 @@ try {
   console.warn('[Firebase Auth] Falha ao inicializar Auth (API Key inválida/ausente). Usando mock para desenvolvimento local.', error);
   // Mock mínimo para o app de demonstração carregar sem tela branca
   auth = {
-    currentUser: { uid: 'dono_demo_123', email: 'produtor_demo@agtech.com' },
+    currentUser: { uid: 'dono_demo_123', email: 'produtor_demo@aghero.com' },
     onAuthStateChanged: (callback) => {
       // Executa o callback imediatamente com o usuário simulado
-      setTimeout(() => callback({ uid: 'dono_demo_123', email: 'produtor_demo@agtech.com' }), 100);
+      setTimeout(() => callback({ uid: 'dono_demo_123', email: 'produtor_demo@aghero.com' }), 100);
       return () => {};
     },
     signOut: async () => {

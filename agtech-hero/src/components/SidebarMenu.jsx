@@ -79,7 +79,7 @@ const NAV_ITEMS = [
 
 /**
  * Sidebar de navegação unificada (desktop fixo + drawer mobile).
- * Mantém a navegação idêntica em todas as telas autenticadas do AgTech Hero.
+ * Mantém a navegação idêntica em todas as telas autenticadas do AgHero.
  */
 export default function SidebarMenu({ menuAberto, setMenuAberto, telaAtiva, onSair, ...handlers }) {
   return (
@@ -101,7 +101,7 @@ export default function SidebarMenu({ menuAberto, setMenuAberto, telaAtiva, onSa
                   <path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" />
                 </svg>
               </div>
-              <span className="text-xl font-heading font-bold text-forest-dark tracking-tight">Agtech</span>
+              <span className="text-xl font-heading font-bold text-forest-dark tracking-tight">AgHero</span>
             </div>
             <button className="lg:hidden p-1 text-forest-light hover:text-forest-dark" onClick={() => setMenuAberto(false)}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>

@@ -1,7 +1,7 @@
 /**
  * src/firebase/services.js
  *
- * Camada de serviços (CRUD) do Agtech sobre o Firestore.
+ * Camada de serviços (CRUD) do AgHero sobre o Firestore.
  *
  * PRINCÍPIO OFFLINE-FIRST:
  * O `db` (de `./config.js`) é inicializado com `persistentLocalCache`, ou

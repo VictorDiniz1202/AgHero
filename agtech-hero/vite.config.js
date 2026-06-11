@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       manifest: {
-        name: 'AgTech Hero',
-        short_name: 'AgTech',
+        name: 'AgHero',
+        short_name: 'AgHero',
         description: 'Gestão Avícola',
         theme_color: '#ffffff',
         icons: [

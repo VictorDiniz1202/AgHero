@@ -38,7 +38,7 @@ function SidebarMenu({ menuAberto, setMenuAberto, onVoltar, onAbrirFormulario, o
                   <path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" />
                 </svg>
               </div>
-              <span className="text-xl font-heading font-bold text-forest-dark tracking-tight">Agtech</span>
+              <span className="text-xl font-heading font-bold text-forest-dark tracking-tight">AgHero</span>
             </div>
             <button className="lg:hidden p-1 text-forest-light hover:text-forest-dark" onClick={() => setMenuAberto(false)}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>

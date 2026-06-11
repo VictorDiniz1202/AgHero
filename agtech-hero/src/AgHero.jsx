@@ -71,7 +71,7 @@ const DashboardMockup = () => {
             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-gradient-to-br from-vivid-emerald to-vivid-teal flex items-center justify-center shadow-sm">
               <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5"><path d="M17 8C8 10 5.9 16.17 3.82 19.34A1 1 0 0 0 5.18 20.5C7 17 9 14 15 13" /><path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" /></svg>
             </div>
-            <span className="text-sm font-heading font-bold text-forest-dark tracking-tight hidden sm:block">Agtech</span>
+            <span className="text-sm font-heading font-bold text-forest-dark tracking-tight hidden sm:block">AgHero</span>
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 rounded-lg bg-vivid-emerald/10 p-2 sm:px-3 sm:py-2 text-[10px] sm:text-[11px] font-bold text-vivid-emerald">
@@ -161,7 +161,7 @@ const Navbar = ({ onAcessarSistema }) => {
                 <path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" />
               </svg>
             </div>
-            <span className="text-forest-dark font-heading font-bold text-xl sm:text-2xl tracking-tight">Agtech</span>
+            <span className="text-forest-dark font-heading font-bold text-xl sm:text-2xl tracking-tight">AgHero</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -243,7 +243,7 @@ const HeroSection = () => (
             Gestão <span className="text-transparent bg-clip-text bg-gradient-to-r from-vivid-emerald to-vivid-teal">Offline-First</span> para o Produtor Rural.
           </h1>
           <p className="text-sm sm:text-base text-forest-light font-medium leading-relaxed">
-            Economize ração e previna perdas com nossa IA preditiva. O AgTech foi desenhado para o peão no galpão, garantindo que nada se perca, mesmo sem internet.
+            Economize ração e previna perdas com nossa IA preditiva. O AgHero foi desenhado para o peão no galpão, garantindo que nada se perca, mesmo sem internet.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2">
             <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] hover:scale-105 transition-transform">
@@ -336,7 +336,7 @@ const ProblemSection = () => (
           </div>
           <h3 className="text-lg font-bold text-forest-dark mb-2">Descoberta Tardia</h3>
           <p className="text-sm text-forest-light font-medium leading-relaxed">
-            A IA da AgTech detecta anomalias sanitárias até 48 horas antes da mortalidade, avisando seu veterinário direto no WhatsApp.
+            A IA da AgHero detecta anomalias sanitárias até 48 horas antes da mortalidade, avisando seu veterinário direto no WhatsApp.
           </p>
         </div>
       </div>
@@ -490,7 +490,7 @@ const AboutSection = () => (
   <section id="sobre" className="relative py-20 sm:py-28 border-t border-forest-light/10 overflow-hidden">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
       <div className="reveal max-w-2xl mx-auto">
-        <p className="text-sm font-bold text-vivid-emerald tracking-wider uppercase mb-4">A Missão AgTech</p>
+        <p className="text-sm font-bold text-vivid-emerald tracking-wider uppercase mb-4">A Missão AgHero</p>
         <h2 className="text-2xl sm:text-4xl font-heading font-bold text-forest-dark mb-6">
           Desenvolvido por quem entende de granja para quem vive da granja.
         </h2>
@@ -509,7 +509,7 @@ const Footer = () => (
   <footer className="bg-forest-dark text-white/70 py-12 border-t border-white/10">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
       <div className="md:col-span-2">
-        <span className="text-white font-heading font-bold text-2xl tracking-tight mb-4 block">Agtech</span>
+        <span className="text-white font-heading font-bold text-2xl tracking-tight mb-4 block">AgHero</span>
         <p className="text-sm font-medium max-w-xs leading-relaxed">
           O Sistema Operacional da sua granja. Offline, preditivo e acessível.
         </p>
@@ -524,13 +524,13 @@ const Footer = () => (
       <div>
         <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-xs">Contato</h4>
         <ul className="space-y-2 text-sm font-medium">
-          <li>suporte@agtech.com</li>
+          <li>suporte@aghero.com</li>
           <li>+55 (11) 99999-9999</li>
         </ul>
       </div>
     </div>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-white/10 text-sm font-medium text-center md:text-left flex flex-col md:flex-row justify-between">
-      <span>© 2026 AgTech. Todos os direitos reservados.</span>
+      <span>© 2026 AgHero. Todos os direitos reservados.</span>
       <div className="space-x-4 mt-4 md:mt-0">
         <a href="#" className="hover:text-white transition-colors">Privacidade</a>
         <a href="#" className="hover:text-white transition-colors">Termos de Uso</a>
@@ -575,13 +575,13 @@ export default function AgHero() {
   useEffect(() => {
     // Tenta logar automaticamente com a conta de testes
     import("firebase/auth").then(({ signInWithEmailAndPassword }) => {
-      signInWithEmailAndPassword(auth, 'demo@agtech.com', 'demo123').catch(console.error);
+      signInWithEmailAndPassword(auth, 'demo@aghero.com', 'demo123').catch(console.error);
     });
 
     // Listen for auth state changes to auto-load the user's farm
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        if (user.uid === 'dono_demo_123' || user.email === 'demo@agtech.com') {
+        if (user.uid === 'dono_demo_123' || user.email === 'demo@aghero.com') {
            setFazendaAtiva('fazenda_demo_123');
            setPapelUsuario('dono');
            return;
@@ -636,7 +636,7 @@ export default function AgHero() {
       <div className="fixed bottom-4 right-4 z-[9999] bg-forest-dark text-white p-4 rounded-xl shadow-2xl flex items-center gap-4 animate-slide-up border border-white/20">
         <div className="flex-1">
           <p className="text-sm font-bold">Nova versão disponível!</p>
-          <p className="text-xs text-white/70">Clique para atualizar o AgTech Hero.</p>
+          <p className="text-xs text-white/70">Clique para atualizar o AgHero.</p>
         </div>
         <button onClick={() => updateServiceWorker(true)} className="px-3 py-1.5 bg-vivid-emerald text-white text-xs font-bold rounded-lg hover:scale-105 transition-transform">
           Atualizar
@@ -664,7 +664,7 @@ export default function AgHero() {
               <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             </div>
             <div>
-              <p className="text-sm font-bold leading-tight">Instalar AgTech Hero</p>
+              <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
               <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
             </div>
           </div>

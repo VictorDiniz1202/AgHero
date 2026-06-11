@@ -26,7 +26,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
     {
       id: 'msg-welcome',
       role: 'assistant',
-      texto: 'Olá! Sou sua Inteligência Artificial integrada ao AgTech Hero. Posso cruzar os dados de sua granja e trazer insights e alertas. Como posso ajudar hoje?',
+      texto: 'Olá! Sou sua Inteligência Artificial integrada ao AgHero. Posso cruzar os dados de sua granja e trazer insights e alertas. Como posso ajudar hoje?',
       timestamp: new Date().toISOString(),
     }
   ]);
@@ -89,7 +89,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
         numeroid: id_fazenda,
         conversa: textoUsuario,
         nomeuser: "Produtor",
-        empresa: "AgTech",
+        empresa: "AgHero",
         tipo: "texto",
         message_id: Date.now().toString()
       };

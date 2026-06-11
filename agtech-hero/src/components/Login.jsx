@@ -49,7 +49,7 @@ export default function Login({ onLoginSuccess, onVoltar }) {
     setErrorMsg('');
     try {
       // Usar a mesma lógica de login, passando credenciais de demonstração (tratado no services.js)
-      const user = await loginComEmail('demo@agtech.com', 'demo123');
+      const user = await loginComEmail('demo@aghero.com', 'demo123');
       onLoginSuccess('fazenda_demo_123');
     } catch (err) {
       console.error(err);

@@ -231,9 +231,8 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onFocus={(e) => {
+              onFocus={() => {
                 setTimeout(() => {
-                  e.target.scrollIntoView({ behavior: 'smooth', block: 'end' });
                   messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                 }, 300);
               }}

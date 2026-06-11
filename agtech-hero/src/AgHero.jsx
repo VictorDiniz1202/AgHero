@@ -589,7 +589,7 @@ export default function AgHero() {
 
         const fazenda = await obterFazendaDoUsuario(user.uid);
         if (fazenda) {
-          setFazendaAtiva(fazenda.id);
+          setFazendaAtiva(fazenda.id_fazenda);
           setPapelUsuario(fazenda.membros?.[user.uid] || 'peao');
         }
       }

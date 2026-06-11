@@ -219,6 +219,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   const [avisoPermissaoBanner, setAvisoPermissaoBanner] = useState(false);
   const [previsaoClimatica, setPrevisaoClimatica] = useState(null);
   const [carregandoClima, setCarregandoClima] = useState(false);
+  const [dropdownLoteAberto, setDropdownLoteAberto] = useState(false);
 
   // Carrega os lotes ativos
   useEffect(() => {
@@ -631,32 +632,46 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
             </button>
             <div>
               <h1 className="text-lg lg:text-xl font-heading font-bold text-forest-dark tracking-tight leading-none">
-                Bem-vindo, Produtor 👋
+                Olá, Produtor 👋
               </h1>
               <p className="hidden sm:block text-xs font-semibold text-forest-light/80 mt-1 uppercase tracking-wider">
-                Visão da Fazenda Progresso
+                Sua visão geral de hoje
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-             {/* Lote Selector */}
+             {/* Lote Selector Custom (Premium Dropdown) */}
              {lotes && lotes.length > 0 ? (
                <div className="relative">
-                 <select
-                   value={loteSelecionadoId || ""}
-                   onChange={(e) => setLoteSelecionadoId(e.target.value)}
-                   className="appearance-none rounded-xl border border-white/60 bg-white/50 px-4 py-2 pr-10 text-sm font-bold text-forest-dark shadow-sm focus:outline-none focus:border-vivid-emerald/50 transition-colors backdrop-blur-md cursor-pointer"
+                 <button
+                   onClick={() => setDropdownLoteAberto(!dropdownLoteAberto)}
+                   className="flex items-center justify-between min-w-[140px] rounded-xl border border-white/60 bg-white/50 px-4 py-2 text-sm sm:text-base font-bold text-forest-dark shadow-sm hover:border-vivid-emerald/50 focus:outline-none transition-all backdrop-blur-md cursor-pointer"
                  >
-                   {lotes.map((l) => (
-                     <option key={l.id} value={l.id}>
-                       Lote: {l.linhagem}
-                     </option>
-                   ))}
-                 </select>
-                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-forest-dark">
-                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
-                 </div>
+                   <span>Lote: {lotes.find(l => l.id === loteSelecionadoId)?.linhagem || "Selecione"}</span>
+                   <svg className={`h-4 w-4 ml-3 text-forest-light transition-transform ${dropdownLoteAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                 </button>
+                 
+                 {/* Dropdown Menu */}
+                 {dropdownLoteAberto && (
+                   <>
+                     <div className="fixed inset-0 z-40" onClick={() => setDropdownLoteAberto(false)} />
+                     <div className="absolute right-0 mt-2 w-full min-w-[160px] bg-white/95 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-50 overflow-hidden animate-slideDown origin-top-right">
+                       {lotes.map((l) => (
+                         <button
+                           key={l.id}
+                           onClick={() => {
+                             setLoteSelecionadoId(l.id);
+                             setDropdownLoteAberto(false);
+                           }}
+                           className={`w-full text-left px-4 py-3 text-sm font-bold transition-colors ${l.id === loteSelecionadoId ? 'bg-vivid-emerald/10 text-vivid-emerald' : 'text-forest-dark hover:bg-black/5'}`}
+                         >
+                           {l.linhagem}
+                         </button>
+                       ))}
+                     </div>
+                   </>
+                 )}
                </div>
              ) : (
                <button onClick={onAbrirLotes} className="rounded-xl border border-agriAlert-orange/40 bg-agriAlert-orange/10 px-4 py-2 text-sm font-bold text-agriAlert-orange shadow-sm hover:bg-agriAlert-orange/20 transition-colors animate-pulse">

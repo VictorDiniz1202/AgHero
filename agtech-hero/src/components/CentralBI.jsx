@@ -152,7 +152,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20 relative">
-        <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
+        <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30 shrink-0">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -239,7 +239,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               }}
               disabled={carregando || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
               placeholder="Pergunte sobre seus lotes..."
-              className="flex-1 h-14 rounded-2xl border border-white bg-white/80 px-6 text-sm font-medium text-forest-dark shadow-lg backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50"
+              className="flex-1 h-14 rounded-2xl border border-white bg-white/80 px-6 text-base sm:text-sm font-medium text-forest-dark shadow-lg backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50"
             />
             <button
               type="submit"

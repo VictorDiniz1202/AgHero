@@ -605,7 +605,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
     window.print();
   };
   return (
-    <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       {/* --- SIDEBAR (Desktop e Mobile Drawer) --- */}
       <SidebarMenu
         menuAberto={menuAberto}
@@ -621,7 +621,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
       />
 
       {/* --- MAIN CONTENT --- */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         
         {/* Topbar */}
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
@@ -1122,8 +1122,9 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                       const active = idadeCiclo >= marco.ini && idadeCiclo <= marco.fim;
                       const unidade = aptidao === 'postura' ? 'Semana' : 'Dia';
                       const periodo = marco.ini === marco.fim ? `${unidade} ${marco.ini}` : `${unidade}s ${marco.ini}-${marco.fim}`;
+                      const isOpen = marcoAberto === i;
                       return (
-                      <div key={i} className="relative z-10 flex md:flex-col items-center gap-3 md:gap-2 w-full md:w-auto">
+                      <div key={i} className={`relative ${isOpen ? 'z-30' : 'z-10'} flex md:flex-col items-center gap-3 md:gap-2 w-full md:w-auto`}>
                          <button
                            type="button"
                            onClick={() => setMarcoAberto(marcoAberto === i ? null : i)}
@@ -1136,7 +1137,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                            <span className="text-[9px] text-forest-light/70 font-semibold">{periodo}</span>
                          </button>
                          {marcoAberto === i && (
-                           <div className="absolute top-full md:top-10 mt-2 left-0 md:left-1/2 md:-translate-x-1/2 w-64 max-w-[80vw] bg-white border border-white/60 rounded-xl shadow-lg p-3 z-20">
+                           <div className="absolute top-full md:top-10 mt-2 left-0 md:left-1/2 md:-translate-x-1/2 w-64 max-w-[80vw] bg-white/95 backdrop-blur-md border border-white/80 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] p-4 z-40">
                              <p className="text-[10px] font-bold text-forest-dark uppercase tracking-wide mb-1">Dica Técnica</p>
                              <p className="text-xs text-forest-light leading-relaxed">{marco.dica}</p>
                            </div>

@@ -650,7 +650,7 @@ export default function AgHero() {
 
   // Helper para injetar o wrapper da animação do sistema
   const SystemWrapper = ({ children }) => (
-    <div className="min-h-screen bg-offwhite font-sans text-forest-dark relative overflow-hidden system-enter">
+    <div className="h-screen h-[100dvh] w-full bg-offwhite font-sans text-forest-dark relative overflow-hidden system-enter flex flex-col">
       {/* Fundo orgânico global para o sistema */}
       <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-vivid-teal/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />

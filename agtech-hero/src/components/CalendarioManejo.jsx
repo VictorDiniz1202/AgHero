@@ -207,9 +207,9 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
 
   if (lotes === null) {
     return (
-      <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+      <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
         <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20">
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex items-center justify-center">
             <p className="text-sm font-bold text-forest-dark animate-pulse">Carregando calendário...</p>
@@ -221,9 +221,9 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
 
   if (lotes.length === 0) {
     return (
-      <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+      <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
         <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20">
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 bg-forest-light/10 rounded-full flex items-center justify-center mb-4">
@@ -238,10 +238,10 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
   }
 
   return (
-    <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <Topbar setMenuAberto={setMenuAberto} />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">

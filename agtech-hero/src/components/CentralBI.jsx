@@ -133,7 +133,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   }, [mensagens]);
 
   return (
-    <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       {/* Sidebar */}
       <SidebarMenu
         menuAberto={menuAberto}
@@ -151,7 +151,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20 relative">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20 relative">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
@@ -172,7 +172,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 flex justify-center pb-32">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 flex justify-center">
           <div className="w-full max-w-3xl flex flex-col space-y-4">
             <HistoricoAlertas
               id_fazenda={id_fazenda}
@@ -216,17 +216,17 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
           </div>
         </main>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 lg:p-6 bg-gradient-to-t from-offwhite via-white/90 to-transparent z-20 flex flex-col items-center gap-3 pointer-events-none">
+        <div className="w-full p-4 lg:p-6 bg-gradient-to-t from-offwhite via-white/95 to-white/90 border-t border-white/40 flex flex-col items-center gap-3 shrink-0 relative z-20">
           {limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max && (
             <button
               type="button"
               onClick={() => setModalUpsellAberto(true)}
-              className="w-full max-w-3xl pointer-events-auto rounded-2xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 px-4 py-3 text-xs font-bold text-agriAlert-orange text-center hover:bg-agriAlert-orange/20 transition-colors"
+              className="w-full max-w-3xl rounded-2xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 px-4 py-3 text-xs font-bold text-agriAlert-orange text-center hover:bg-agriAlert-orange/20 transition-colors"
             >
               Você atingiu o limite de {limites.max} consultas diárias do plano Essencial. Toque para conhecer o plano Inteligente e ter IA ilimitada! 🚀
             </button>
           )}
-          <form onSubmit={enviarMensagem} className="w-full max-w-3xl flex items-center gap-2 pointer-events-auto">
+          <form onSubmit={enviarMensagem} className="w-full max-w-3xl flex items-center gap-2">
             <input
               type="text"
               value={input}

@@ -55,7 +55,7 @@ export default function GestaoFinanceira({
   };
 
   return (
-    <div className="flex h-screen w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       <SidebarMenu
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
@@ -69,7 +69,7 @@ export default function GestaoFinanceira({
         onSair={onVoltar}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white/20">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>

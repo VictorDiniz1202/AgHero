@@ -216,7 +216,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
           </div>
         </main>
 
-        <div className="w-full p-4 lg:p-6 bg-gradient-to-t from-offwhite via-white/95 to-white/90 border-t border-white/40 flex flex-col items-center gap-3 shrink-0 relative z-20">
+        <div className="w-full px-4 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] lg:p-6 bg-gradient-to-t from-offwhite via-white/95 to-white/90 border-t border-white/40 flex flex-col items-center gap-3 shrink-0 relative z-20">
           {limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max && (
             <button
               type="button"
@@ -231,6 +231,12 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={(e) => {
+                setTimeout(() => {
+                  e.target.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 300);
+              }}
               disabled={carregando || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
               placeholder="Pergunte sobre seus lotes..."
               className="flex-1 h-14 rounded-2xl border border-white bg-white/80 px-6 text-sm font-medium text-forest-dark shadow-lg backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50"

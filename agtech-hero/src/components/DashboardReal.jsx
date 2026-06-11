@@ -1124,24 +1124,26 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                       const periodo = marco.ini === marco.fim ? `${unidade} ${marco.ini}` : `${unidade}s ${marco.ini}-${marco.fim}`;
                       const isOpen = marcoAberto === i;
                       return (
-                      <div key={i} className={`relative ${isOpen ? 'z-30' : 'z-10'} flex md:flex-col items-center gap-3 md:gap-2 w-full md:w-auto`}>
-                         <button
-                           type="button"
-                           onClick={() => setMarcoAberto(marcoAberto === i ? null : i)}
-                           className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-shadow ${done ? 'border-vivid-emerald bg-vivid-emerald text-white' : active ? CORES_LINHA[corLinha].marco : 'border-white/60 bg-offwhite'}`}
-                         >
-                            {done && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}
-                         </button>
-                         <button type="button" onClick={() => setMarcoAberto(marcoAberto === i ? null : i)} className="flex flex-col items-center md:text-center">
-                           <span className={`text-xs font-bold ${active ? (corLinha === 'verde' ? 'text-vivid-emerald' : corLinha === 'laranja' ? 'text-agriAlert-orange' : 'text-agriAlert-red') : done ? 'text-forest-dark' : 'text-forest-light'}`}>{marco.nome}</span>
-                           <span className="text-[9px] text-forest-light/70 font-semibold">{periodo}</span>
-                         </button>
-                         {marcoAberto === i && (
-                           <div className="absolute top-full md:top-10 mt-2 left-0 md:left-1/2 md:-translate-x-1/2 w-64 max-w-[80vw] bg-white/95 backdrop-blur-md border border-white/80 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] p-4 z-40">
-                             <p className="text-[10px] font-bold text-forest-dark uppercase tracking-wide mb-1">Dica Técnica</p>
-                             <p className="text-xs text-forest-light leading-relaxed">{marco.dica}</p>
-                           </div>
-                         )}
+                      <div key={i} className={`relative ${isOpen ? 'z-30' : 'z-10'} flex flex-col w-full md:w-auto`}>
+                        <div className="flex md:flex-col items-center gap-3 md:gap-2 w-full">
+                           <button
+                             type="button"
+                             onClick={() => setMarcoAberto(marcoAberto === i ? null : i)}
+                             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-shadow ${done ? 'border-vivid-emerald bg-vivid-emerald text-white' : active ? CORES_LINHA[corLinha].marco : 'border-white/60 bg-offwhite'}`}
+                           >
+                              {done && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}
+                           </button>
+                           <button type="button" onClick={() => setMarcoAberto(marcoAberto === i ? null : i)} className="flex flex-col items-start md:items-center text-left md:text-center">
+                             <span className={`text-xs font-bold ${active ? (corLinha === 'verde' ? 'text-vivid-emerald' : corLinha === 'laranja' ? 'text-agriAlert-orange' : 'text-agriAlert-red') : done ? 'text-forest-dark' : 'text-forest-light'}`}>{marco.nome}</span>
+                             <span className="text-[9px] text-forest-light/70 font-semibold">{periodo}</span>
+                           </button>
+                        </div>
+                        {marcoAberto === i && (
+                          <div className="mt-3 md:absolute md:top-10 md:mt-2 left-0 md:left-1/2 md:-translate-x-1/2 w-full md:w-64 max-w-[90vw] bg-white/95 backdrop-blur-md border border-white/80 rounded-xl shadow-lg md:shadow-[0_10px_30px_rgba(0,0,0,0.15)] p-4 z-40 animate-slideDown origin-top">
+                            <p className="text-[10px] font-bold text-forest-dark uppercase tracking-wide mb-1">Dica Técnica</p>
+                            <p className="text-xs text-forest-light leading-relaxed">{marco.dica}</p>
+                          </div>
+                        )}
                       </div>
                       );
                     })}

@@ -1,0 +1,256 @@
+{
+  "name": "AgTech - Roteamento Preditivo Diário (Completo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agtech-registro-diario",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook (Firebase)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.plano }}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "equal",
+              "value2": "Inteligente"
+            }
+          ]
+        },
+        "fallbackOutput": 1
+      },
+      "id": "node-switch",
+      "name": "Roteamento de Plano",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "projectId": "SEU_PROJECT_ID",
+        "collection": "registros_diarios",
+        "returnAll": false,
+        "limit": 5,
+        "filters": {
+          "field": [
+            {
+              "field": "id_lote",
+              "operator": "EQUAL",
+              "value": "={{ $('Webhook (Firebase)').item.json.body.registro.id_lote }}"
+            }
+          ]
+        }
+      },
+      "id": "node-firestore",
+      "name": "Buscar Histórico (Firestore)",
+      "type": "n8n-nodes-base.googleFirestore",
+      "typeVersion": 1,
+      "position": [500, 150]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const historico_formatado = $input.all().map(item => ({\n  data_registro_str: item.json.data_registro_str,\n  agua_litros: item.json.agua_litros || 0,\n  racao_kg: item.json.racao_kg || 0,\n  temp_max: item.json.temp_max || 0,\n  temp_min: item.json.temp_min || 0\n}));\n\nreturn [\n  {\n    json: {\n      historico_formatado\n    }\n  }\n];"
+      },
+      "id": "node-code-format",
+      "name": "Formatar Histórico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://HOST_DA_SUA_API_FASTAPI:8000/analisar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"id_lote\": \"{{ $('Webhook (Firebase)').item.json.body.registro.id_lote }}\",\n  \"historico\": {{ JSON.stringify($json.historico_formatado) }}\n}",
+        "options": {}
+      },
+      "id": "node-fastapi",
+      "name": "Motor Preditivo FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.anomalia_detectada }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-ia",
+      "name": "Teve Anomalia (IA)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1150, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://HOST_DO_EVOLUTION:8080/message/sendText/NOME_DA_INSTANCIA",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUA_API_KEY_DO_EVOLUTION"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook (Firebase)').item.json.body.contatos_autorizados[0] }}\",\n  \"text\": \"{{ $json.mensagem_xai }}\"\n}",
+        "options": {}
+      },
+      "id": "node-evolution-xai",
+      "name": "Evolution API (Alerta XAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1400, 50]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Webhook (Firebase)').item.json.body.registro.mortalidade_qtd }}",
+              "operation": "larger",
+              "value2": 10
+            }
+          ]
+        }
+      },
+      "id": "node-if-bruta",
+      "name": "Mortalidade Alta? (Regra Bruta)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://HOST_DO_EVOLUTION:8080/message/sendText/NOME_DA_INSTANCIA",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUA_API_KEY_DO_EVOLUTION"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook (Firebase)').item.json.body.contatos_autorizados[0] }}\",\n  \"text\": \"⚠️ Anomalia de mortalidade detectada no Lote {{ $('Webhook (Firebase)').item.json.body.registro.id_lote }}. Ative o Plano Inteligente para receber a análise preditiva da causa.\"\n}",
+        "options": {}
+      },
+      "id": "node-evolution-upsell",
+      "name": "Evolution API (Upsell)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [750, 350]
+    }
+  ],
+  "connections": {
+    "Webhook (Firebase)": {
+      "main": [
+        [
+          {
+            "node": "Roteamento de Plano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteamento de Plano": {
+      "main": [
+        [
+          {
+            "node": "Buscar Histórico (Firestore)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mortalidade Alta? (Regra Bruta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Histórico (Firestore)": {
+      "main": [
+        [
+          {
+            "node": "Formatar Histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Histórico": {
+      "main": [
+        [
+          {
+            "node": "Motor Preditivo FastAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Motor Preditivo FastAPI": {
+      "main": [
+        [
+          {
+            "node": "Teve Anomalia (IA)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teve Anomalia (IA)?": {
+      "main": [
+        [
+          {
+            "node": "Evolution API (Alerta XAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mortalidade Alta? (Regra Bruta)": {
+      "main": [
+        [
+          {
+            "node": "Evolution API (Upsell)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

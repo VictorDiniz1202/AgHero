@@ -1,0 +1,88 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════
+// Firestore Security Rules — Agtech (SaaS Multi-tenant)
+//
+// Princípio: isolamento estrito por fazenda via id_fazenda.
+// Segmenta os papéis dos membros (dono e peao) para garantir integridade.
+// ═══════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─────────────────────────────────────────────────────────────────
+    // Helpers de Acesso baseados no mapa de membros da fazenda
+    // ─────────────────────────────────────────────────────────────────
+    function getFarmData(farmId) {
+      return get(/databases/$(database)/documents/fazendas/$(farmId)).data;
+    }
+
+    function isMemberOfFarm(farmId) {
+      return farmId == 'fazenda_demo_123' || (request.auth != null &&
+        request.auth.uid in getFarmData(farmId).membros);
+    }
+
+    function isOwnerOfFarm(farmId) {
+      return farmId == 'fazenda_demo_123' || (request.auth != null &&
+        getFarmData(farmId).membros[request.auth.uid] == 'dono');
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // /fazendas/{id_fazenda}
+    // ═════════════════════════════════════════════════════════════════
+    match /fazendas/{id_fazenda} {
+
+      // Leitura: Qualquer membro autenticado da fazenda, ou a fazenda demo
+      allow read: if id_fazenda == 'fazenda_demo_123' || (request.auth != null &&
+        request.auth.uid in resource.data.membros);
+
+      // Criação: Qualquer um autenticado pode criar, desde que se registre como dono
+      allow create: if request.auth != null &&
+        request.resource.data.membros[request.auth.uid] == 'dono';
+
+      // Atualização e Exclusão: Apenas o dono da fazenda, ou a fazenda demo
+      allow update, delete: if id_fazenda == 'fazenda_demo_123' || (request.auth != null &&
+        resource.data.membros[request.auth.uid] == 'dono');
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/lotes/{id_lote}
+      // ═══════════════════════════════════════════════════════════════
+      match /lotes/{id_lote} {
+        // Leitura: Qualquer membro (dono/peão) precisa ler para manejar
+        allow read: if isMemberOfFarm(id_fazenda);
+
+        // Escrita (Alojamento/Encerramento): Decisões estratégicas, apenas dono
+        allow write: if isOwnerOfFarm(id_fazenda);
+
+        // ═════════════════════════════════════════════════════════════
+        // /fazendas/{id_fazenda}/lotes/{id_lote}/sanidade/{id_registro}
+        // ═════════════════════════════════════════════════════════════
+        match /sanidade/{id_registro} {
+          // Leitura e Lançamento (vacinas/sintomas): Peões e Donos trabalham aqui
+          allow read, create, update: if isMemberOfFarm(id_fazenda);
+
+          // Exclusão de Histórico Sanitário: Apenas dono pode apagar registros
+          allow delete: if isOwnerOfFarm(id_fazenda);
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/registros_diarios/{id_registro}
+      // ═══════════════════════════════════════════════════════════════
+      match /registros_diarios/{id_registro} {
+        // Leitura e Lançamento Diário: Peões e Donos trabalham aqui
+        allow read, create, update: if isMemberOfFarm(id_fazenda);
+        
+        // Exclusão de Histórico: Apenas dono pode apagar registros
+        allow delete: if isOwnerOfFarm(id_fazenda);
+      }
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // Bloqueio padrão
+    // ═════════════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

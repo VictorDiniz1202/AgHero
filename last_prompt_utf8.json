@@ -1,0 +1,42 @@
+﻿
+{"step_index":542,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-06-10T19:44:32Z","con
+tent":"<USER_REQUEST>\ngemini, o agente que utilizei pra criar o novo design me criou o prompt do frontend. \n\nAki 
+estÃ¡:\n\nGuia de Engenharia de Frontend: Agritech Premium Glassmorphism\r\nComo Senior UI/UX Designer, eu estruturei 
+a passagem de bastÃ£o para o Agente Programador (Engenheiro Frontend) de forma otimizada. Dividi a construÃ§Ã£o em 3 
+Sub-prompts. Isso evita que a IA \"halucine\" ou esqueÃ§a detalhes de design enquanto foca na lÃ³gica do 
+cÃ³digo.\r\n\r\nðŸ’¡ RecomendaÃ§Ã£o de Modelo: Utilize o Claude 3.5 Sonnet (seja na web ou atravÃ©s de agentes). 
+Atualmente, Ã© o modelo nÃºmero 1 do mundo para geraÃ§Ã£o de interfaces complexas com React, Next.js e Tailwind CSS. 
+Ele entende micro-interaÃ§Ãµes e nuances de UI muito melhor que os outros.\r\n\r\nðŸ›ï¸ Prompt 1: O Alicerce (Tokens 
+e Tailwind)\r\nObjetivo: Configurar o coraÃ§Ã£o do Design System (Cores, Fontes e UtilitÃ¡rios). Arquivos que vocÃª 
+deve anexar/mandar para o Claude: tailwind.config.ts (ou .js) e globals.css.\r\n\r\nCopie e cole o texto abaixo para a 
+IA:\r\n\r\nmarkdown\r\n\r\nVocÃª Ã© um Engenheiro de Frontend SÃªnior, especialista em React, Next.js e Tailwind 
+CSS.\r\nSua primeira tarefa Ã© configurar o Design System de uma aplicaÃ§Ã£o Agritech focada em \"High-Tech 
+OrgÃ¢nico\".\r\nNossa estÃ©tica Ã© baseada em **Premium Light Glassmorphism**. Usaremos fundos claros (Off-white), com 
+painÃ©is de vidro translÃºcido, bordas brancas sutis e tons extremamente vivos (Esmeralda e Neon) para criar contraste 
+e refraÃ§Ã£o.\r\n**1. Configure o tailwind.config com os seguintes tokens exatos:**\r\n- colors.forest.DEFAULT: 
+'#1B4332' (Textos e marca principal)\r\n- colors.forest.dark: '#081C15' (Alto contraste e tÃtulos pesados)\r\n- 
+colors.forest.light: '#2D6A4F' (Hovers e acentos escuros)\r\n- colors.vivid.emerald: '#10B981' (Cor de aÃ§Ã£o 
+primÃ¡ria, brilhos e gradientes)\r\n- colors.vivid.lime: '#84CC16' (Cor de acento neon para detalhes orgÃ¢nicos)\r\n- 
+colors.vivid.teal: '#14B8A6' (Cor de suporte para backgrounds orgÃ¢nicos)\r\n- colors.offwhite: '#F9FAFB' (Fundo base 
+do app)\r\n- colors.agriAlert.red: '#EF4\n<truncated 2418 bytes>\nde interface (insira aqui o que vocÃª quer 
+construir: ex: \"A tela inicial do Dashboard Agritech\").\r\nSiga essas Regras de Ouro Premium estritamente na 
+construÃ§Ã£o:\r\n1. **Estrutura de Cards:** Sempre use a classe \\`.glass-panel\\` que criamos no globals.css para 
+qualquer card, modal ou topbar. NÃƒO use bg-white sÃ³lido.\r\n2. **Tipografia:** TÃtulos devem usar \\`font-heading 
+font-semibold tracking-tight text-forest-dark\\`. O contraste de texto Ã© essencial.\r\n3. **Sombras de Acento:** Para 
+componentes muito importantes (como um Card de Resumo de ProduÃ§Ã£o ou BotÃ£o Principal), eleve o nÃvel do design 
+adicionando uma sombra viva, usando nossa cor neon: \\`shadow-[0_20px_60px_-15px_rgba(16,185,129,0.25)]\\`. Isso cria 
+um \"Glow\" tecnolÃ³gico em vez de uma sombra suja preta.\r\n4. **Bordas Duplas In-line (Opcional para Cards 
+HerÃ³i):** Para elevar um card ao extremo, adicione gradientes sutis nas bordas, simulando a refraÃ§Ã£o de luz do 
+vidro.\r\n5. **BotÃµes de AÃ§Ã£o:** Devem usar \\`bg-gradient-to-r from-vivid-emerald to-vivid-lime\\`, texto 
+\\`text-white\\` (ou \\`text-forest-dark\\` para alto contraste), com hover elevando a escala (\\`hover:scale-105\\`) 
+e um glow sutil.\r\n6. **Alertas:** Se houver status de maquinÃ¡rio ou mortandade, use \\`bg-agriAlert-red/10 border 
+border-agriAlert-red/30 text-agriAlert-red\\` para criar alertas elegantes que respeitam a estÃ©tica vÃ
+trea.\r\nConstrua a tela focando na responsividade e num espaÃ§amento respiro (use paddings generosos, como p-8 ou 
+p-10 em cards grandes).\n\n\ncomo vc Ã© o senior em gestao de projetos, quero que analise e me diga se essa abordagem 
+Ã© a mais eficiente\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 
+2026-06-10T16:44:32-03:00.\n</ADDITIONAL_METADATA>\n<USER_SETTINGS_CHANGE>\nThe user changed setting `Model Selection` 
+from Gemini 3.5 Flash (Medium) to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask 
+about it. If reporting what model you are, please use a human readable name instead of the exact 
+string.\n</USER_SETTINGS_CHANGE>"}
+
+

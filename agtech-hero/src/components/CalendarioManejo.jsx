@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { obterLotesAtivos, obterUltimosRegistros } from '../firebase/services';
+import SidebarMenu from './SidebarMenu';
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MESES = [
@@ -17,90 +18,7 @@ function dataRegistroStr(data) {
   return formatarDataStr(data.getFullYear(), data.getMonth(), data.getDate());
 }
 
-// --- Sidebar lateral (Desktop fixo / Drawer no mobile), espelhando o DashboardReal ---
-function SidebarMenu({ menuAberto, setMenuAberto, onVoltar, onAbrirFormulario, onAbrirBI }) {
-  return (
-    <>
-      {menuAberto && (
-        <div
-          className="fixed inset-0 bg-forest-dark/20 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setMenuAberto(false)}
-        />
-      )}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/60 border-r border-forest-light/10 flex flex-col justify-between backdrop-blur-2xl transition-transform duration-300 lg:relative lg:translate-x-0 ${menuAberto ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-5 space-y-8 overflow-y-auto">
-          {/* Logo & Close */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-vivid-emerald to-vivid-teal flex items-center justify-center shadow-sm">
-                <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4">
-                  <path d="M17 8C8 10 5.9 16.17 3.82 19.34A1 1 0 0 0 5.18 20.5C7 17 9 14 15 13" />
-                  <path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" />
-                </svg>
-              </div>
-              <span className="text-xl font-heading font-bold text-forest-dark tracking-tight">AgHero</span>
-            </div>
-            <button className="lg:hidden p-1 text-forest-light hover:text-forest-dark" onClick={() => setMenuAberto(false)}>
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
 
-          {/* Navigation */}
-          <nav className="space-y-2">
-            <div
-              onClick={() => { setMenuAberto(false); onVoltar && onVoltar(); }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-forest-light hover:bg-white/50 cursor-pointer transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-              Visão Geral
-            </div>
-            <div
-              onClick={() => { setMenuAberto(false); onAbrirFormulario && onAbrirFormulario(); }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-forest-light hover:bg-white/50 cursor-pointer transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-              Lançar Manejo
-            </div>
-            <div
-              onClick={() => { setMenuAberto(false); onAbrirBI && onAbrirBI(); }}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-forest-light hover:bg-white/50 cursor-pointer transition-colors"
-            >
-              <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-              Central BI & IA
-            </div>
-            <div className="flex items-center gap-3 rounded-xl bg-vivid-emerald/10 px-4 py-3 text-sm font-bold text-vivid-emerald cursor-pointer">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              Calendário
-            </div>
-            {onVoltar && (
-              <div
-                onClick={() => { setMenuAberto(false); onVoltar(); }}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-forest-light hover:bg-white/50 cursor-pointer transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Sair do Painel
-              </div>
-            )}
-          </nav>
-        </div>
-
-        {/* Upgrade Box */}
-        <div className="p-5">
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-forest-dark to-forest p-4 shadow-xl">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center mb-3">
-              <span className="text-vivid-emerald text-lg">✨</span>
-            </div>
-            <p className="text-sm font-bold text-white mb-1">Plano Inteligente</p>
-            <p className="text-xs text-white/70 leading-relaxed mb-4">Desbloqueie IA preditiva para todos os lotes.</p>
-            <button className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-xs font-bold text-white">
-              Fazer Upgrade
-            </button>
-          </div>
-        </div>
-      </aside>
-    </>
-  );
-}
 
 // --- Topbar superior, espelhando o DashboardReal ---
 function Topbar({ setMenuAberto }) {
@@ -117,7 +35,16 @@ function Topbar({ setMenuAberto }) {
   );
 }
 
-export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroativo, onAbrirFormulario, onAbrirBI }) {
+export default function CalendarioManejo({ 
+  id_fazenda, 
+  onVoltar, 
+  onLancarRetroativo, 
+  onAbrirFormulario, 
+  onAbrirBI,
+  onAbrirNutricao,
+  onAbrirAgua,
+  onAbrirFinanceiro 
+}) {
   const [dataAtual, setDataAtual] = useState(new Date());
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
@@ -208,7 +135,18 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
   if (lotes === null) {
     return (
       <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-        <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
+        <SidebarMenu
+          menuAberto={menuAberto}
+          setMenuAberto={setMenuAberto}
+          telaAtiva="calendario"
+          onSair={onVoltar}
+          onAbrirDashboard={onVoltar}
+          onAbrirFormulario={onAbrirFormulario}
+          onAbrirBI={onAbrirBI}
+          onAbrirNutricao={onAbrirNutricao}
+          onAbrirAgua={onAbrirAgua}
+          onAbrirFinanceiro={onAbrirFinanceiro}
+        />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex items-center justify-center">
@@ -222,7 +160,18 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
   if (lotes.length === 0) {
     return (
       <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-        <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
+        <SidebarMenu
+          menuAberto={menuAberto}
+          setMenuAberto={setMenuAberto}
+          telaAtiva="calendario"
+          onSair={onVoltar}
+          onAbrirDashboard={onVoltar}
+          onAbrirFormulario={onAbrirFormulario}
+          onAbrirBI={onAbrirBI}
+          onAbrirNutricao={onAbrirNutricao}
+          onAbrirAgua={onAbrirAgua}
+          onAbrirFinanceiro={onAbrirFinanceiro}
+        />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -239,7 +188,18 @@ export default function CalendarioManejo({ id_fazenda, onVoltar, onLancarRetroat
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu menuAberto={menuAberto} setMenuAberto={setMenuAberto} onVoltar={onVoltar} onAbrirFormulario={onAbrirFormulario} onAbrirBI={onAbrirBI} />
+      <SidebarMenu
+        menuAberto={menuAberto}
+        setMenuAberto={setMenuAberto}
+        telaAtiva="calendario"
+        onSair={onVoltar}
+        onAbrirDashboard={onVoltar}
+        onAbrirFormulario={onAbrirFormulario}
+        onAbrirBI={onAbrirBI}
+        onAbrirNutricao={onAbrirNutricao}
+        onAbrirAgua={onAbrirAgua}
+        onAbrirFinanceiro={onAbrirFinanceiro}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <Topbar setMenuAberto={setMenuAberto} />

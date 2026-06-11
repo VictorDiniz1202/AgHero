@@ -786,6 +786,7 @@ export default function AgHero() {
           onAbrirBI={() => setTela("bi")}
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
+          onAbrirFinanceiro={() => setTela("financeiro")}
         />
       </SystemWrapper>
     );

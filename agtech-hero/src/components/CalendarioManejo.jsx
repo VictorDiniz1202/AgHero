@@ -35,15 +35,17 @@ function Topbar({ setMenuAberto }) {
   );
 }
 
-export default function CalendarioManejo({ 
-  id_fazenda, 
-  onVoltar, 
-  onLancarRetroativo, 
-  onAbrirFormulario, 
+export default function CalendarioManejo({
+  id_fazenda,
+  papelUsuario,
+  onVoltar,
+  onLancarRetroativo,
+  onAbrirFormulario,
   onAbrirBI,
   onAbrirNutricao,
   onAbrirAgua,
-  onAbrirFinanceiro 
+  onAbrirFinanceiro,
+  onAbrirRelatorios
 }) {
   const [dataAtual, setDataAtual] = useState(new Date());
   const [lotes, setLotes] = useState(null);
@@ -139,6 +141,7 @@ export default function CalendarioManejo({
           menuAberto={menuAberto}
           setMenuAberto={setMenuAberto}
           telaAtiva="calendario"
+          papelUsuario={papelUsuario}
           onSair={onVoltar}
           onAbrirDashboard={onVoltar}
           onAbrirFormulario={onAbrirFormulario}
@@ -146,6 +149,7 @@ export default function CalendarioManejo({
           onAbrirNutricao={onAbrirNutricao}
           onAbrirAgua={onAbrirAgua}
           onAbrirFinanceiro={onAbrirFinanceiro}
+          onAbrirRelatorios={onAbrirRelatorios}
         />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
@@ -164,6 +168,7 @@ export default function CalendarioManejo({
           menuAberto={menuAberto}
           setMenuAberto={setMenuAberto}
           telaAtiva="calendario"
+          papelUsuario={papelUsuario}
           onSair={onVoltar}
           onAbrirDashboard={onVoltar}
           onAbrirFormulario={onAbrirFormulario}
@@ -171,6 +176,7 @@ export default function CalendarioManejo({
           onAbrirNutricao={onAbrirNutricao}
           onAbrirAgua={onAbrirAgua}
           onAbrirFinanceiro={onAbrirFinanceiro}
+          onAbrirRelatorios={onAbrirRelatorios}
         />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
@@ -192,6 +198,7 @@ export default function CalendarioManejo({
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="calendario"
+        papelUsuario={papelUsuario}
         onSair={onVoltar}
         onAbrirDashboard={onVoltar}
         onAbrirFormulario={onAbrirFormulario}
@@ -199,6 +206,7 @@ export default function CalendarioManejo({
         onAbrirNutricao={onAbrirNutricao}
         onAbrirAgua={onAbrirAgua}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">

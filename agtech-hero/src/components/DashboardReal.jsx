@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { obterLotesAtivos, obterUltimosRegistros, obterFazenda, obterRegistrosSanitarios, obterAlertasEnviados } from "../firebase/services";
 import { VACINAS_PADRAO, obterVacinasAtrasadas, calcularIdadeLote } from "./ManejoSanitario";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, doc, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase/config";
 import ModalUpsell from "./ModalUpsell";
-import { obterPrevisaoClimatica } from "../utils/climaPreditivo";
+import { obterPrevisaoClimatica, calcularITU } from "../utils/climaPreditivo";
 import SidebarMenu from "./SidebarMenu";
+import { DIRETRIZES_ZOOTECNICAS } from "../data/DiretrizesZootecnicas";
 
 // --- Tabelas Zootécnicas Oficiais ---
 function obterPesoPadraoCobb500(dias) {
@@ -59,6 +61,26 @@ function obterCurvaPosturaLohmann(semana) {
     }
   }
   return 90;
+}
+
+// --- Curva Padrão de Peso Corporal Lohmann (g, por semana de idade) ---
+// Interpola a partir das metas semanais oficiais em DiretrizesZootecnicas.js
+function obterPesoPadraoLohmann(semana) {
+  const metas = DIRETRIZES_ZOOTECNICAS["Lohmann"].metas_semanais;
+  const semanas = Object.keys(metas).map(Number).sort((a, b) => a - b);
+
+  if (semana <= semanas[0]) return metas[semanas[0]].peso_g;
+  if (semana >= semanas[semanas.length - 1]) return metas[semanas[semanas.length - 1]].peso_g;
+
+  for (let i = 0; i < semanas.length - 1; i++) {
+    const s1 = semanas[i];
+    const s2 = semanas[i + 1];
+    if (semana >= s1 && semana <= s2) {
+      const prop = (semana - s1) / (s2 - s1);
+      return metas[s1].peso_g + prop * (metas[s2].peso_g - metas[s1].peso_g);
+    }
+  }
+  return metas[semanas[semanas.length - 1]].peso_g;
 }
 
 // Formata um valor numérico como moeda BRL
@@ -207,7 +229,132 @@ const LineChart = ({ historico }) => {
   );
 };
 
-export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro }) {
+// --- Curva de Crescimento Corporal: Real vs Padrão (Cobb 500 / Lohmann) ---
+const GrowthChart = ({ historico, aptidao, dataAlojamento }) => {
+  const W = 280, H = 120;
+  const isPostura = aptidao === 'postura';
+  const linhagemPadrao = isPostura ? 'Lohmann' : 'Cobb 500';
+
+  // Pesagens reais registradas (idade do lote no dia x peso médio)
+  const pontosReais = (dataAlojamento ? historico : [])
+    .filter(r => typeof r.peso_medio_g === 'number' && r.peso_medio_g > 0)
+    .map(r => {
+      const dataRegistro = new Date(`${r.data_registro_str}T00:00:00`);
+      const idadeDiasRegistro = Math.max(1, Math.round((dataRegistro - dataAlojamento) / (1000 * 60 * 60 * 24)) + 1);
+      const eixo = isPostura ? Math.max(1, Math.ceil(idadeDiasRegistro / 7)) : idadeDiasRegistro;
+      return { eixo, peso: r.peso_medio_g };
+    })
+    .sort((a, b) => a.eixo - b.eixo);
+
+  if (pontosReais.length === 0) {
+    return (
+      <div className="glass-panel rounded-2xl p-4 shadow-sm">
+        <p className="text-xs font-heading font-bold text-forest-dark uppercase tracking-wide mb-3">Curva de Crescimento Corporal</p>
+        <div className="h-28 flex items-center justify-center px-2">
+          <p className="text-[11px] font-semibold text-agriAlert-orange bg-agriAlert-orange/10 px-3 py-2 rounded-lg border border-agriAlert-orange/20 text-center">
+            ⚠️ Registre pesagens para visualizar a curva de crescimento.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const obterPesoPadrao = (eixo) => isPostura ? obterPesoPadraoLohmann(eixo) : obterPesoPadraoCobb500(eixo);
+
+  const eixoMax = Math.max(...pontosReais.map(p => p.eixo), isPostura ? 18 : 7);
+
+  // Curva guia: amostra uniforme do padrão zootécnico ao longo do eixo
+  const N = 12;
+  const guia = Array.from({ length: N + 1 }, (_, i) => {
+    const eixo = (eixoMax / N) * i;
+    return { eixo, peso: obterPesoPadrao(eixo) };
+  });
+
+  const pesoMax = Math.max(...guia.map(g => g.peso), ...pontosReais.map(p => p.peso)) * 1.1;
+
+  const getX = (eixo) => (eixo / eixoMax) * W;
+  const getY = (peso) => H - (peso / pesoMax) * H;
+
+  const ptsGuia = guia.map(g => `${getX(g.eixo)},${getY(g.peso)}`).join(' ');
+  const ptsReal = pontosReais.map(p => `${getX(p.eixo)},${getY(p.peso)}`).join(' ');
+
+  // Desvio percentual final: último peso real vs padrão na mesma idade
+  const ultimo = pontosReais[pontosReais.length - 1];
+  const pesoPadraoUltimo = obterPesoPadrao(ultimo.eixo);
+  const desvioFinalPct = ((ultimo.peso - pesoPadraoUltimo) / pesoPadraoUltimo) * 100;
+
+  return (
+    <div className="glass-panel rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow break-inside-avoid">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <p className="text-xs font-heading font-bold text-forest-dark uppercase tracking-wide">Curva de Crescimento Corporal</p>
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${desvioFinalPct >= 0 ? 'bg-vivid-emerald/10 text-vivid-emerald' : 'bg-agriAlert-orange/10 text-agriAlert-orange'}`}>
+          {desvioFinalPct > 0 ? '+' : ''}{desvioFinalPct.toFixed(1)}% vs {linhagemPadrao}
+        </span>
+      </div>
+      <div className="h-32 w-full">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="none">
+          {/* Linha guia: padrão zootécnico oficial */}
+          <polyline
+            points={ptsGuia}
+            fill="none"
+            stroke="var(--color-forest-light)"
+            strokeWidth="2"
+            strokeDasharray="4 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.55"
+          />
+          {/* Linha real: pesagens registradas no lote */}
+          <polyline
+            points={ptsReal}
+            fill="none"
+            stroke="var(--color-vivid-emerald)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ filter: "drop-shadow(0px 4px 6px rgba(16,185,129,0.3))" }}
+          />
+          {pontosReais.map((p, i) => (
+            <circle key={i} cx={getX(p.eixo)} cy={getY(p.peso)} r="3" fill="var(--color-vivid-emerald)" stroke="white" strokeWidth="1.5" />
+          ))}
+        </svg>
+      </div>
+      <div className="flex items-center justify-between mt-2 px-1">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-forest-light">
+            <span className="w-3 border-t-2 border-dashed border-forest-light/70" />
+            Padrão {linhagemPadrao}
+          </span>
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-forest-light">
+            <span className="w-2 h-2 rounded-full bg-vivid-emerald shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+            Real (Lote)
+          </span>
+        </div>
+        <span className="text-[10px] font-semibold text-forest-light/70">
+          Eixo: {isPostura ? 'semanas' : 'dias'} de vida
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// --- Classificação de Estresse Térmico por ITU (Índice de Temperatura e Umidade) ---
+// < 74 Confortável | 74-79 Alerta | 79-84 Emergência | >= 84 Crítico
+function classificarITU(itu) {
+  if (itu == null || Number.isNaN(itu)) return null;
+  if (itu >= 84) {
+    return { nivel: 'critico', label: 'Crítico', corTexto: 'text-agriAlert-red', corFundo: 'bg-agriAlert-red/10', corBorda: 'border-agriAlert-red/40', pulsante: true };
+  }
+  if (itu >= 79) {
+    return { nivel: 'emergencia', label: 'Emergência', corTexto: 'text-orange-600', corFundo: 'bg-orange-500/10', corBorda: 'border-orange-500/30', pulsante: false };
+  }
+  if (itu >= 74) {
+    return { nivel: 'alerta', label: 'Alerta', corTexto: 'text-amber-600', corFundo: 'bg-amber-400/10', corBorda: 'border-amber-400/30', pulsante: false };
+  }
+  return { nivel: 'confortavel', label: 'Confortável', corTexto: 'text-vivid-emerald', corFundo: 'bg-vivid-emerald/10', corBorda: 'border-vivid-emerald/30', pulsante: false };
+}
+
+export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -220,6 +367,11 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   const [previsaoClimatica, setPrevisaoClimatica] = useState(null);
   const [carregandoClima, setCarregandoClima] = useState(false);
   const [dropdownLoteAberto, setDropdownLoteAberto] = useState(false);
+  const [configPesagemFazenda, setConfigPesagemFazenda] = useState(null);
+  const [localizacaoFazenda, setLocalizacaoFazenda] = useState({ latitude: null, longitude: null });
+  const [registrosSanitarios, setRegistrosSanitarios] = useState([]);
+  const [vacinaAberta, setVacinaAberta] = useState(null);
+  const [planoFazenda, setPlanoFazenda] = useState('Essencial');
 
   // Carrega os lotes ativos
   useEffect(() => {
@@ -237,18 +389,44 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
     return () => { ativo = false; };
   }, [id_fazenda]);
 
-  // Carrega os limites de alerta configurados pelo dono (mortalidade crítica, desvio água/ração)
+  // Carrega os limites de alerta configurados pelo dono e ouve o plano em tempo real
   useEffect(() => {
     if (!id_fazenda) return;
-    let ativo = true;
-    obterFazenda(id_fazenda).then((fazenda) => {
-      if (!ativo) return;
-      if (fazenda?.alertas_config) {
-        setAlertasConfig((prev) => ({ ...prev, ...fazenda.alertas_config }));
+    
+    const unsub = onSnapshot(doc(db, 'fazendas', id_fazenda), (docSnap) => {
+      if (docSnap.exists()) {
+        const fazenda = docSnap.data();
+        if (fazenda?.alertas_config) {
+          setAlertasConfig((prev) => ({ ...prev, ...fazenda.alertas_config }));
+        }
+        if (fazenda?.config_pesagem) {
+          setConfigPesagemFazenda(fazenda.config_pesagem);
+        }
+        if (fazenda?.latitude != null && fazenda?.longitude != null) {
+          setLocalizacaoFazenda({ latitude: fazenda.latitude, longitude: fazenda.longitude });
+        }
+        if (fazenda?.plano) {
+          setPlanoFazenda(fazenda.plano);
+        }
       }
     });
-    return () => { ativo = false; };
+    
+    return () => unsub();
   }, [id_fazenda]);
+
+  // Carrega os registros sanitários (vacinas aplicadas) do lote selecionado,
+  // usados nos marcos vacinais 💉 da linha do tempo e no motor de alertas.
+  useEffect(() => {
+    if (!id_fazenda || !loteSelecionadoId) {
+      setRegistrosSanitarios([]);
+      return;
+    }
+    let ativo = true;
+    obterRegistrosSanitarios(id_fazenda, loteSelecionadoId).then((res) => {
+      if (ativo) setRegistrosSanitarios(res ?? []);
+    });
+    return () => { ativo = false; };
+  }, [id_fazenda, loteSelecionadoId]);
 
   // Carrega o histórico de alertas da IA, usado para o gatilho de upsell
   // (anomalia crítica bloqueada pelo plano Essencial nas últimas 24h).
@@ -302,14 +480,14 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
       : new Date(lote.data_alojamento);
     const idade = Math.max(1, Math.floor((new Date() - dataAlojamento) / (1000 * 60 * 60 * 24)));
 
-    obterPrevisaoClimatica(lote.linhagem, idade).then((res) => {
+    obterPrevisaoClimatica(lote.linhagem, idade, localizacaoFazenda.latitude, localizacaoFazenda.longitude).then((res) => {
       if (!ativo) return;
       setPrevisaoClimatica(res);
       setCarregandoClima(false);
     });
 
     return () => { ativo = false; };
-  }, [loteSelecionadoId, lotes]);
+  }, [loteSelecionadoId, lotes, localizacaoFazenda.latitude, localizacaoFazenda.longitude]);
 
   // Efeito para revelar itens suavemente
   useEffect(() => {
@@ -355,11 +533,14 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   let idadeSemanas = 0;
   let desvioAtualPct = null;
   let pesagemPendente = false;
+  let diaAlvoPesagemPendente = null;
+  let dataAlojamentoLote = null;
 
   if (loteAtual) {
     const dataAlojamento = loteAtual.data_alojamento instanceof Timestamp
       ? loteAtual.data_alojamento.toDate()
       : new Date(loteAtual.data_alojamento);
+    dataAlojamentoLote = dataAlojamento;
 
     idadeDias = Math.max(1, Math.floor((new Date() - dataAlojamento) / (1000 * 60 * 60 * 24)));
     idadeSemanas = Math.floor((idadeDias - 1) / 7) + 1;
@@ -445,10 +626,15 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
     }
 
     // --- Verificação de Pesagem Pendente (frequencia_pesagem) ---
-    const freqPesagem = loteAtual.frequencia_pesagem || "semanal";
+    const freqPesagem = loteAtual.frequencia_pesagem || configPesagemFazenda?.frequencia || "semanal";
     let diasAlvoPesagem;
-    if (freqPesagem === "personalizado" && Array.isArray(loteAtual.dias_pesagem_personalizados)) {
-      diasAlvoPesagem = [...loteAtual.dias_pesagem_personalizados].filter(d => d > 0).sort((a, b) => a - b);
+    if (freqPesagem === "personalizado") {
+      const diasPersonalizados = (Array.isArray(loteAtual.dias_pesagem_personalizados) && loteAtual.dias_pesagem_personalizados.length > 0)
+        ? loteAtual.dias_pesagem_personalizados
+        : configPesagemFazenda?.dias_personalizados;
+      diasAlvoPesagem = (Array.isArray(diasPersonalizados) && diasPersonalizados.length > 0)
+        ? [...diasPersonalizados].filter(d => d > 0).sort((a, b) => a - b)
+        : [7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84];
     } else if (freqPesagem === "diario") {
       diasAlvoPesagem = null; // toda data de registro deveria conter peso médio
     } else {
@@ -468,6 +654,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
         r => r.data_registro_str >= dataAlvoStr && typeof r.peso_medio_g === 'number' && r.peso_medio_g > 0
       );
       pesagemPendente = !temPesoNoCiclo;
+      if (pesagemPendente) diaAlvoPesagemPendente = ultimoAlvoAtingido;
     }
   }
 
@@ -540,6 +727,56 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
     }
   }
 
+  // 4. Vacinas atrasadas no plano sanitário (Manejo Sanitário)
+  const vacinasAtrasadas = loteAtual
+    ? obterVacinasAtrasadas(aptidao === 'postura' ? 'Postura' : 'Corte', idadeDias, registrosSanitarios)
+    : [];
+  if (vacinasAtrasadas.length > 0) {
+    alertas.push({
+      tipo: 'aviso',
+      titulo: 'Vacina(s) Atrasada(s)',
+      mensagem: `${vacinasAtrasadas.map(v => v.nome).join(', ')} atrasada(s) no plano vacinal do Lote ${loteAtual?.linhagem || ""}. Registre a aplicação em Manejo Sanitário.`
+    });
+  }
+
+  // --- Estresse Térmico / ITU (Sub-sprint 21.2) ---
+  const ituAtual = hoje?.itu ?? calcularITU(hoje?.temp_max, hoje?.umidade_relativa);
+  const classificacaoItuAtual = classificarITU(ituAtual);
+
+  // Painel de Recomendação de Manejo Ativo: considera o ITU atual (lotes com
+  // mais de 14 dias) e, na ausência de alerta atual, a previsão dos próximos dias.
+  let recomendacaoManejo = null;
+  if (idadeDias > 14) {
+    const MENSAGENS_ITU = {
+      critico: (itu) => `🚨 ITU Crítico (${itu}): Risco extremo de mortalidade por calor! Nebulizadores devem estar ligados, evite manuseio das aves e reduza a densidade de cortinas.`,
+      emergencia: (itu) => `🔥 ITU de Emergência (${itu}): Risco alto de estresse térmico. Acione nebulizadores, maximize a exaustão e monitore as aves continuamente.`,
+      alerta: (itu) => `⚠️ ITU de Alerta (${itu}): Risco moderado de estresse térmico. Ligue exaustores nas horas mais quentes e verifique vazão de bebedouros.`,
+    };
+
+    if (classificacaoItuAtual && classificacaoItuAtual.nivel !== 'confortavel') {
+      recomendacaoManejo = {
+        ...classificacaoItuAtual,
+        itu: ituAtual,
+        previsto: false,
+        mensagem: MENSAGENS_ITU[classificacaoItuAtual.nivel](ituAtual),
+      };
+    } else if (previsaoClimatica?.previsoes?.length) {
+      for (const dia of previsaoClimatica.previsoes) {
+        const classificacaoDia = classificarITU(dia.itu);
+        if (classificacaoDia && classificacaoDia.nivel !== 'confortavel') {
+          recomendacaoManejo = {
+            ...classificacaoDia,
+            itu: dia.itu,
+            previsto: true,
+            data: dia.data_curta,
+            mensagem: `${MENSAGENS_ITU[classificacaoDia.nivel](dia.itu)} (Previsão para ${dia.data_curta})`,
+          };
+          break;
+        }
+      }
+    }
+  }
+
   // --- Cor Dinâmica da Linha de Eficiência (Verde/Laranja/Vermelho) ---
   const limiteMortalidadeCritica = (alertasConfig.mortalidade_critica || 0.15) * 100;
   const temAlertaConsumo = alertas.some(a => a.tipo === 'aviso');
@@ -561,7 +798,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   // Verifica se há, nas últimas 24h, algum alerta da IA para o lote ativo que
   // não pôde ser enviado ao WhatsApp por restrição de plano.
   const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000;
-  const alertaBloqueadoCritico = alertasRecentes.find((alerta) => {
+  const alertaBloqueadoCritico = planoFazenda !== 'Inteligente' && alertasRecentes.find((alerta) => {
     if (alerta.status_envio !== 'bloqueado_plano') return false;
     if (alerta.id_lote !== loteSelecionadoId) return false;
     const dataEnvio = typeof alerta.data_envio?.toDate === 'function' ? alerta.data_envio.toDate() : null;
@@ -570,7 +807,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   });
 
   function handleClickBannerUpsell() {
-    if (papelUsuario === 'dono') {
+    if (papelUsuario === 'dono' || papelUsuario === 'owner') {
       setModalUpsellAberto(true);
     } else {
       setAvisoPermissaoBanner(true);
@@ -580,6 +817,9 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   // --- Marcos do Ciclo Adaptados à Aptidão do Lote ---
   const marcos = aptidao === 'postura' ? MARCOS_POSTURA : MARCOS_CORTE;
   const idadeCiclo = aptidao === 'postura' ? idadeSemanas : idadeDias;
+
+  // Plano vacinal adaptado (marcos interativos 💉 na linha do tempo)
+  const planoVacinal = VACINAS_PADRAO[aptidao === 'postura' ? 'Postura' : 'Corte'] || VACINAS_PADRAO.Corte;
 
   const [menuAberto, setMenuAberto] = useState(false);
 
@@ -612,12 +852,14 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="dashboard"
+        papelUsuario={papelUsuario}
         onAbrirFormulario={onAbrirFormulario}
         onAbrirNutricao={onAbrirNutricao}
         onAbrirAgua={onAbrirAgua}
         onAbrirBI={onAbrirBI}
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
         onSair={onVoltar}
       />
 
@@ -625,7 +867,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         
         {/* Topbar */}
-        <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
+        <header className="no-print flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -703,7 +945,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                >
                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                </button>
-               {papelUsuario !== "peao" && (
+               {papelUsuario !== "peao" && papelUsuario !== "operator" && (
                  <button
                    onClick={onAbrirConfiguracoes}
                    title="Configurações da Fazenda"
@@ -714,9 +956,9 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                )}
              </div>
 
-             <button 
+             <button
                onClick={onAbrirFormulario}
-               className="hidden sm:flex items-center gap-2 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime px-4 py-2 text-sm font-bold text-white shadow-[0_10px_20px_-5px_rgba(16,185,129,0.4)] hover:scale-105 transition-transform"
+               className="no-print hidden sm:flex items-center gap-2 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime px-4 py-2 text-sm font-bold text-white shadow-[0_10px_20px_-5px_rgba(16,185,129,0.4)] hover:scale-105 transition-transform"
              >
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
                Manejo
@@ -724,9 +966,17 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
           </div>
         </header>
 
+        {/* Cabeçalho exclusivo para impressão (Relatório PDF) */}
+        <div className="print-only hidden px-4 lg:px-8 pt-4">
+          <h1 className="text-xl font-heading font-extrabold">Relatório de Manejo — {loteAtual?.linhagem || "Lote"}</h1>
+          <p className="text-xs mt-1">
+            {aptidao === 'postura' ? 'Postura' : 'Corte'} · Idade do Lote: {idadeDias} dias · Gerado em {new Date().toLocaleDateString('pt-BR')}
+          </p>
+        </div>
+
         {/* Banner de Upsell: Anomalia Crítica bloqueada pelo Plano Essencial */}
         {alertaBloqueadoCritico && (
-          <div className="px-4 lg:px-8 pt-4">
+          <div className="no-print px-4 lg:px-8 pt-4">
             <button
               type="button"
               onClick={handleClickBannerUpsell}
@@ -744,6 +994,18 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                 Apenas administradores podem gerenciar o plano da fazenda.
               </p>
             )}
+          </div>
+        )}
+
+        {/* Banner de Pesagem Pendente */}
+        {pesagemPendente && (
+          <div className="no-print px-4 lg:px-8 pt-4">
+            <div className="rounded-2xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 backdrop-blur-md px-4 py-3.5 flex items-center gap-3 shadow-sm animate-pulse">
+              <span className="text-2xl shrink-0">⚖️</span>
+              <p className="text-xs sm:text-sm font-bold text-agriAlert-orange leading-relaxed">
+                Pesagem pendente para o Dia {diaAlvoPesagemPendente}. Registre o peso médio para atualizar os índices.
+              </p>
+            </div>
           </div>
         )}
 
@@ -777,7 +1039,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                     <button
                       type="button"
                       onClick={() => setModalUpsellAberto(true)}
-                      className="text-[11px] font-bold text-vivid-emerald bg-vivid-emerald/10 border border-vivid-emerald/30 px-3 py-1.5 rounded-full hover:bg-vivid-emerald/20 transition-colors whitespace-nowrap"
+                      className="no-print text-[11px] font-bold text-vivid-emerald bg-vivid-emerald/10 border border-vivid-emerald/30 px-3 py-1.5 rounded-full hover:bg-vivid-emerald/20 transition-colors whitespace-nowrap"
                     >
                       💬 Receber alertas no WhatsApp
                     </button>
@@ -790,12 +1052,18 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                         alerta: 'bg-agriAlert-orange/10 border-agriAlert-orange/20 text-agriAlert-orange',
                         normal: 'bg-vivid-emerald/5 border-vivid-emerald/15 text-forest-dark',
                       };
+                      const classificacaoDia = classificarITU(dia.itu);
                       return (
                         <div key={dia.data_str} className={`flex-1 min-w-[150px] rounded-xl border p-3 ${estilos[dia.severidade] || estilos.normal}`}>
                           <div className="flex items-center justify-between mb-1.5">
                             <span className="text-xs font-bold uppercase tracking-wide">{dia.data_curta}</span>
                             <span className="text-xs font-bold">{dia.temp_min}° / {dia.temp_max}°</span>
                           </div>
+                          {classificacaoDia && (
+                            <div className={`inline-flex items-center gap-1 mb-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold ${classificacaoDia.corFundo} ${classificacaoDia.corTexto}`}>
+                              ITU {dia.itu} · {classificacaoDia.label}
+                            </div>
+                          )}
                           <p className="text-[11px] font-semibold leading-relaxed">
                             {dia.alerta || "Temperatura dentro da faixa de conforto. Nenhuma ação necessária."}
                           </p>
@@ -803,6 +1071,39 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Card de Estresse Térmico / ITU */}
+              {classificacaoItuAtual && (
+                <div className={`reveal-left glass-panel rounded-2xl p-5 shadow-sm border ${classificacaoItuAtual.corBorda} ${classificacaoItuAtual.corFundo} ${classificacaoItuAtual.pulsante ? 'animate-pulse' : ''}`}>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-forest-light uppercase tracking-widest mb-1.5">Índice de Temperatura e Umidade (ITU)</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className={`text-4xl font-heading font-extrabold leading-none ${classificacaoItuAtual.corTexto}`}>{ituAtual}</p>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${classificacaoItuAtual.corFundo} ${classificacaoItuAtual.corTexto} ${classificacaoItuAtual.corBorda}`}>
+                          {classificacaoItuAtual.label}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-forest-light font-medium mt-1.5">
+                        Último registro: Temp. máx. {hoje?.temp_max}°C · Umidade {hoje?.umidade_relativa}%
+                      </p>
+                    </div>
+                    <div className="text-3xl shrink-0">
+                      {classificacaoItuAtual.nivel === 'critico' ? '🚨' : classificacaoItuAtual.nivel === 'emergencia' ? '🔥' : classificacaoItuAtual.nivel === 'alerta' ? '⚠️' : '🌬️'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Painel de Recomendação de Manejo Ativo (ITU em alerta/emergência/crítico) */}
+              {recomendacaoManejo && (
+                <div className={`reveal-left glass-panel rounded-2xl p-5 shadow-sm border space-y-1.5 ${recomendacaoManejo.corBorda} ${recomendacaoManejo.corFundo} ${recomendacaoManejo.pulsante ? 'animate-pulse' : ''}`}>
+                  <p className="text-[10px] font-bold text-forest-light uppercase tracking-widest">Recomendação de Manejo Ativo</p>
+                  <p className={`text-sm font-bold leading-relaxed ${recomendacaoManejo.corTexto}`}>
+                    {recomendacaoManejo.mensagem}
+                  </p>
                 </div>
               )}
 
@@ -938,7 +1239,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
               </div>
 
               {/* Painel de Viabilidade Econômica */}
-              {papelUsuario !== 'peao' && (
+              {papelUsuario !== 'peao' && papelUsuario !== 'operator' && (
                 <div className="reveal-left glass-panel rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <div>
@@ -991,22 +1292,16 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                 </div>
               )}
 
-              {/* Alerta de Pesagem Pendente */}
-              {pesagemPendente && (
-                <div className="reveal-left bg-agriAlert-orange/10 border border-agriAlert-orange/30 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
-                  <span className="text-2xl shrink-0">⚖️</span>
-                  <p className="text-sm font-bold text-agriAlert-orange leading-relaxed">
-                    Pesagem pendente para o ciclo atual! Registre o peso médio das aves para atualizar os índices zootécnicos de eficiência.
-                  </p>
-                </div>
-              )}
-
               {/* Middle Area: Chart & Kanban/Insights */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Left Side: Chart (2 cols on Desktop) */}
                 <div className="lg:col-span-2 space-y-6">
                    <LineChart historico={historico} />
+
+                   {loteAtual && (
+                     <GrowthChart historico={historico} aptidao={aptidao} dataAlojamento={dataAlojamentoLote} />
+                   )}
 
                    {/* Kanban / Tasks Preview */}
                    <div className="glass-panel rounded-2xl p-5 shadow-sm">
@@ -1163,6 +1458,54 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                       );
                     })}
                  </div>
+
+                 {/* Marcos Vacinais do Plano Sanitário */}
+                 {planoVacinal.length > 0 && (
+                   <div className="mt-6 pt-5 border-t border-white/40">
+                     <p className="text-[10px] font-heading font-bold text-forest-dark uppercase tracking-wide mb-3">Plano Vacinal do Ciclo</p>
+                     <div className="flex flex-wrap gap-2">
+                       {planoVacinal.map((item, i) => {
+                         const aplicada = registrosSanitarios.find(r => r.tipo === 'vacina' && r.nome === item.nome && r.status === 'aplicada');
+                         const unidade = aptidao === 'postura' ? 'Semana' : 'Dia';
+                         const idadeRef = aptidao === 'postura' ? Math.max(1, Math.ceil(item.idade_dias / 7)) : item.idade_dias;
+                         const status = aplicada ? 'aplicada' : idadeDias > item.idade_dias ? 'atrasada' : idadeDias === item.idade_dias ? 'hoje' : 'pendente';
+                         const estilos = {
+                           aplicada: 'bg-vivid-emerald/10 border-vivid-emerald/30 text-vivid-emerald',
+                           atrasada: 'bg-agriAlert-red/10 border-agriAlert-red/30 text-agriAlert-red',
+                           hoje: 'bg-agriAlert-orange/10 border-agriAlert-orange/30 text-agriAlert-orange animate-pulse',
+                           pendente: 'bg-white/40 border-white/60 text-forest-light',
+                         };
+                         const isOpen = vacinaAberta === i;
+                         return (
+                           <div key={i} className="relative">
+                             <button
+                               type="button"
+                               onClick={() => setVacinaAberta(isOpen ? null : i)}
+                               className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold transition-colors ${estilos[status]}`}
+                             >
+                               💉 {item.nome}
+                               <span className="opacity-70 font-semibold">· {unidade} {idadeRef}</span>
+                             </button>
+                             {isOpen && (
+                               <div className="absolute left-0 top-full mt-2 w-56 max-w-[80vw] bg-white/95 backdrop-blur-md border border-white/80 rounded-xl shadow-lg p-3 z-40 animate-slideDown origin-top">
+                                 <p className="text-[10px] font-bold text-forest-dark uppercase tracking-wide mb-1">{item.nome}</p>
+                                 <p className="text-xs text-forest-light leading-relaxed">
+                                   {status === 'aplicada'
+                                     ? `Aplicada em ${aplicada.data_str || '--'}${aplicada.via_aplicacao ? ` (via ${aplicada.via_aplicacao})` : ''}.`
+                                     : status === 'atrasada'
+                                       ? `Atrasada! Programada para o ${unidade.toLowerCase()} ${idadeRef}. Registre a aplicação em Manejo Sanitário.`
+                                       : status === 'hoje'
+                                         ? `Programada para hoje (${unidade.toLowerCase()} ${idadeRef}). Registre a aplicação em Manejo Sanitário.`
+                                         : `Programada para o ${unidade.toLowerCase()} ${idadeRef}.`}
+                                 </p>
+                               </div>
+                             )}
+                           </div>
+                         );
+                       })}
+                     </div>
+                   </div>
+                 )}
               </div>
 
             </div>
@@ -1171,7 +1514,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
       </div>
       
       {/* Mobile Fab for Manejo */}
-      <div className="lg:hidden fixed bottom-6 right-6 z-40">
+      <div className="no-print lg:hidden fixed bottom-6 right-6 z-40">
         <button
            onClick={onAbrirFormulario}
            className="w-14 h-14 rounded-full bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white shadow-[0_10px_25px_rgba(16,185,129,0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border border-white/20"
@@ -1181,7 +1524,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
       </div>
 
       {modalUpsellAberto && (
-        <ModalUpsell onFechar={() => setModalUpsellAberto(false)} />
+        <ModalUpsell id_fazenda={id_fazenda} onFechar={() => setModalUpsellAberto(false)} />
       )}
     </div>
   );

@@ -16,6 +16,7 @@ import {
 import { db } from '../firebase/config';
 import { obterFazenda, obterLotesAtivos, obterRegistroPorData, salvarAlertaEnviado, salvarRegistroDiario } from '../firebase/services';
 import { calcularIdadeDias, detectarAnomalias, dispararAlertaWhatsapp, montarPayloadAlerta } from '../utils/motorAlertas';
+import { calcularITU } from '../utils/climaPreditivo';
 
 const VALORES_INICIAIS = {
   agua_litros: 0,
@@ -23,6 +24,7 @@ const VALORES_INICIAIS = {
   mortalidade_qtd: 0,
   temp_max: 0,
   temp_min: 0,
+  umidade_relativa: 0,
   peso_medio_g: 0,
   producao_ovos_qtd: 0,
   ovos_descarte_qtd: 0,
@@ -185,7 +187,7 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
       return;
     }
 
-    const camposNumericos = ['agua_litros', 'racao_kg', 'mortalidade_qtd', 'temp_max', 'temp_min', 'peso_medio_g'];
+    const camposNumericos = ['agua_litros', 'racao_kg', 'mortalidade_qtd', 'temp_max', 'temp_min', 'umidade_relativa', 'peso_medio_g'];
     if (aptidaoAtual === 'postura') {
       camposNumericos.push('producao_ovos_qtd', 'ovos_descarte_qtd');
     }
@@ -202,6 +204,11 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
     if (dados.temp_max < dados.temp_min) {
       setFeedback({ tipo: 'erro', mensagem: 'A temperatura máxima não pode ser menor que a mínima.' });
       return;
+    }
+
+    const itu = calcularITU(dados.temp_max, dados.umidade_relativa);
+    if (itu !== null) {
+      dados.itu = itu;
     }
 
     salvarRegistroDiario(id_fazenda, loteSelecionadoId, {
@@ -351,6 +358,17 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
               onChange={(valor) => atualizarCampo('temp_min', valor)}
             />
           </div>
+
+          <CampoContador
+            id="umidade_relativa"
+            label="Umidade Relativa"
+            unidade="%"
+            value={valores.umidade_relativa}
+            step={1}
+            min={0}
+            max={100}
+            onChange={(valor) => atualizarCampo('umidade_relativa', valor)}
+          />
 
           <div>
             <CampoContador

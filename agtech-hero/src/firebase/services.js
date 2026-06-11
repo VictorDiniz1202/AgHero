@@ -21,6 +21,7 @@
  */
 
 import { db } from './config';
+import { calcularFechamentoLote } from '../utils/fechamentoLote';
 import {
   collection,
   doc,
@@ -105,6 +106,16 @@ export async function criarFazenda(nome, tipoProducao, contatos, donoUid) {
   setDoc(fazendaRef, fazendaData).catch((error) => {
     console.error(`[Firestore] Falha ao sincronizar criação da fazenda "${fazendaRef.id}":`, error);
   });
+
+  // Salva também na nova estrutura de Collaborators
+  const colabRef = doc(db, 'collaborators', donoUid);
+  setDoc(colabRef, {
+    uid: donoUid,
+    farmId: fazendaRef.id,
+    role: 'owner',
+    email: auth.currentUser?.email || '',
+    nome: auth.currentUser?.displayName || nome || 'Dono'
+  }).catch(console.error);
 
   return { id: fazendaRef.id, ...fazendaData };
 }
@@ -361,18 +372,51 @@ export async function obterLotesInativos(id_fazenda) {
 }
 
 /**
- * Encerra um lote alterando seu status para "encerrado".
+ * Obtém todos os registros diários de um lote específico, ordenados por data.
+ *
+ * Diferente de `obterUltimosRegistros` (que pagina os registros mais recentes
+ * de toda a fazenda), esta função busca o histórico completo de um único
+ * lote via `where('id_lote', '==', id_lote)` — usada pela Ficha de
+ * Fechamento e pelo agregador `calcularFechamentoLote`.
  *
  * @param {string} id_fazenda
  * @param {string} id_lote
+ * @returns {Promise<RegistroDiario[]>}
+ */
+export async function obterRegistrosDiarios(id_fazenda, id_lote) {
+  try {
+    const registrosRef = collection(db, 'fazendas', id_fazenda, 'registros_diarios');
+    const q = query(registrosRef, where('id_lote', '==', id_lote));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => (a.data_registro_str || '').localeCompare(b.data_registro_str || ''));
+  } catch (error) {
+    console.error(`[Firestore] Falha ao obter registros diários do lote "${id_lote}" da fazenda "${id_fazenda}":`, error);
+    return [];
+  }
+}
+
+/**
+ * Encerra um lote alterando seu status para "encerrado" e computa os dados zootécnicos e financeiros.
+ *
+ * @param {string} id_fazenda
+ * @param {Object} lote Objeto do lote contendo id e quantidade_inicial
  * @returns {Promise<void>}
  */
-export async function encerrarLote(id_fazenda, id_lote) {
-  const loteRef = doc(db, 'fazendas', id_fazenda, 'lotes', id_lote);
+export async function encerrarLote(id_fazenda, lote) {
+  try {
+    const registros = await obterRegistrosDiarios(id_fazenda, lote.id);
+    const transacoes = await obterTransacoesLote(id_fazenda, lote.id);
 
-  setDoc(loteRef, { status: 'encerrado' }, { merge: true }).catch((error) => {
-    console.error(`[Firestore] Falha ao encerrar lote "${id_lote}" da fazenda "${id_fazenda}":`, error);
-  });
+    const fechamento = calcularFechamentoLote({ lote, historico: registros, transacoes });
+
+    const loteRef = doc(db, 'fazendas', id_fazenda, 'lotes', lote.id);
+    await setDoc(loteRef, { status: 'encerrado', fechamento }, { merge: true });
+  } catch (error) {
+    console.error(`[Firestore] Falha ao encerrar lote "${lote.id}" da fazenda "${id_fazenda}":`, error);
+  }
 }
 
 /**
@@ -521,6 +565,10 @@ export async function criarConta(email, senha, nomeFazenda = "Minha Granja", tip
   const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
   const user = userCredential.user;
   
+  // Initialize onboarding flag
+  const userDocRef = doc(db, 'usuarios', user.uid);
+  await setDoc(userDocRef, { onboarding_concluido: false }, { merge: true });
+
   // Create a default farm for the new user
   await criarFazenda(nomeFazenda, tipoProducao, [], user.uid);
   
@@ -539,6 +587,19 @@ export async function deslogar() {
  */
 export async function obterFazendaDoUsuario(uid) {
   try {
+    // 1. Tenta buscar na nova coleção de colaboradores
+    const colabRef = doc(db, 'collaborators', uid);
+    const colabSnap = await getDoc(colabRef);
+    if (colabSnap.exists()) {
+      const colabData = colabSnap.data();
+      const farmRef = doc(db, 'fazendas', colabData.farmId);
+      const farmSnap = await getDoc(farmRef);
+      if (farmSnap.exists()) {
+        return { id: farmSnap.id, id_fazenda: farmSnap.id, ...farmSnap.data(), papelColaborador: colabData.role };
+      }
+    }
+
+    // 2. Fallback para compatibilidade com o mapa de membros (MVP antigo / Demo)
     const q = query(collection(db, 'fazendas'));
     const snapshot = await getDocs(q);
     
@@ -549,12 +610,122 @@ export async function obterFazendaDoUsuario(uid) {
     });
 
     if (fazenda) {
-      return { id: fazenda.id, ...fazenda.data() };
+      const role = fazenda.data().membros[uid] === 'dono' ? 'owner' : 'operator';
+      return { id: fazenda.id, id_fazenda: fazenda.id, ...fazenda.data(), papelColaborador: role };
     }
     return null;
   } catch (error) {
     console.error('[Firestore] Falha ao obter fazenda do usuário:', error);
     return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Gestão de Equipe (Collaborators)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Obtém todos os colaboradores associados a uma fazenda.
+ * @param {string} id_fazenda 
+ * @returns {Promise<Object[]>}
+ */
+export async function obterColaboradores(id_fazenda) {
+  try {
+    const colabRef = collection(db, 'collaborators');
+    const q = query(colabRef, where('farmId', '==', id_fazenda));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+  } catch (error) {
+    console.error(`[Firestore] Falha ao obter colaboradores da fazenda ${id_fazenda}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Adiciona um convite de colaborador.
+ * Cria o registro com ID automático e `uid: null`.
+ * @param {string} id_fazenda 
+ * @param {string} email 
+ * @param {string} role 'owner' | 'veterinarian' | 'operator'
+ * @param {string} nome 
+ */
+export async function adicionarColaborador(id_fazenda, email, role, nome) {
+  const colabsRef = collection(db, 'collaborators');
+  const docRef = doc(colabsRef);
+  const data = {
+    uid: null,
+    farmId: id_fazenda,
+    email,
+    role,
+    nome
+  };
+  setDoc(docRef, data).catch(console.error);
+  return { id: docRef.id, ...data };
+}
+
+/**
+ * Remove um colaborador da equipe.
+ * @param {string} id_colaborador 
+ */
+export async function removerColaborador(id_colaborador) {
+  try {
+    const docRef = doc(db, 'collaborators', id_colaborador);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error(`[Firestore] Falha ao remover colaborador ${id_colaborador}:`, error);
+  }
+}
+
+/**
+ * Auto-vínculo de E-mail/UID no login.
+ * Executado ao se autenticar para transformar o convite num membro ativo indexado pelo UID.
+ * @param {string} uid 
+ * @param {string} email 
+ * @param {string} displayName 
+ */
+export async function vincularColaboradorSePendente(uid, email, displayName) {
+  try {
+    // Procura convites pendentes para este e-mail
+    const colabsRef = collection(db, 'collaborators');
+    const q = query(colabsRef, where('email', '==', email));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const docSnap = snapshot.docs[0];
+      const data = docSnap.data();
+      if (!data.uid) {
+        // Vincula criando novo documento com o UID correto e deletando o temporário
+        const colabDocRef = doc(db, 'collaborators', uid);
+        await setDoc(colabDocRef, {
+          ...data,
+          uid: uid,
+          nome: data.nome || displayName || email.split('@')[0]
+        });
+        if (docSnap.id !== uid) {
+          await deleteDoc(docSnap.ref);
+        }
+      }
+    } else {
+      // Criação inicial caso seja o dono recém cadastrado que não passou por convite
+      const colabRef = doc(db, 'collaborators', uid);
+      const colabSnap = await getDoc(colabRef);
+      if (!colabSnap.exists()) {
+        const qFarms = query(collection(db, 'fazendas'));
+        const farmsSnap = await getDocs(qFarms);
+        const legacyFarm = farmsSnap.docs.find(d => d.data().membros?.[uid] === 'dono');
+        if (legacyFarm) {
+          await setDoc(colabRef, {
+            uid,
+            farmId: legacyFarm.id,
+            role: 'owner',
+            email,
+            nome: displayName || email.split('@')[0]
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Firestore] Erro ao vincular colaborador pendente:', error);
   }
 }
 
@@ -714,3 +885,203 @@ export async function deletarTransacao(id_fazenda, id_lote, id_transacao) {
     console.error(`[Firestore] Falha ao deletar transacao "${id_transacao}" do lote "${id_lote}":`, error);
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Gestão de Pesagens (Peso Médio / Uniformidade)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registra ou atualiza uma pesagem (amostragem) vinculada a um lote.
+ *
+ * @param {string} id_fazenda
+ * @param {string} id_lote
+ * @param {Object} pesagemData
+ * @param {string} pesagemData.data_str Formato YYYY-MM-DD
+ * @param {number} pesagemData.peso_medio_g
+ * @param {number} [pesagemData.uniformidade_pct]
+ * @param {number} [pesagemData.idade_dias] Idade do lote no dia da pesagem
+ * @param {string} [id_existente] Opcional. Se passado, atualiza. Senão, cria novo.
+ * @returns {Promise<Object>}
+ */
+export async function salvarPesagem(id_fazenda, id_lote, pesagemData, id_existente = null) {
+  const pesagensRef = collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'pesagens');
+  const docRef = id_existente ? doc(pesagensRef, id_existente) : doc(pesagensRef);
+
+  const data = {
+    ...pesagemData,
+    timestamp_registro: Timestamp.now(),
+  };
+
+  setDoc(docRef, data, { merge: true }).catch((error) => {
+    console.error(`[Firestore] Falha ao salvar pesagem no lote "${id_lote}":`, error);
+  });
+
+  return { id: docRef.id, ...data };
+}
+
+/**
+ * Recupera o histórico de pesagens de um lote.
+ *
+ * @param {string} id_fazenda
+ * @param {string} id_lote
+ * @returns {Promise<Object[]>}
+ */
+export async function obterPesagens(id_fazenda, id_lote) {
+  try {
+    const pesagensRef = collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'pesagens');
+    const q = query(pesagensRef, orderBy('data_str', 'desc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  } catch (error) {
+    console.error(`[Firestore] Falha ao obter pesagens do lote "${id_lote}":`, error);
+    return [];
+  }
+}
+
+/**
+ * Deleta um registro de pesagem específico.
+ *
+ * @param {string} id_fazenda
+ * @param {string} id_lote
+ * @param {string} id_pesagem
+ * @returns {Promise<void>}
+ */
+export async function deletarPesagem(id_fazenda, id_lote, id_pesagem) {
+  try {
+    const docRef = doc(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'pesagens', id_pesagem);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error(`[Firestore] Falha ao deletar pesagem "${id_pesagem}" do lote "${id_lote}":`, error);
+  }
+}
+
+// ─── FATURAMENTO E CHECKOUT (SANDBOX) ────────────────────────────────────────────
+
+/**
+ * Simula a criação de uma sessão de checkout Stripe/Asaas
+ */
+export async function criarSessaoCheckout(id_fazenda, uid_usuario) {
+  // Simula latência de rede
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  
+  // Em produção, isso bateria em uma Cloud Function para obter a URL real do Stripe/Asaas
+  // Para testes locais, retornamos uma URL simulada que altera o plano no Firestore após 3 segundos
+  const urlSandbox = `https://checkout.stripe.com/pay/sandbox_${id_fazenda}`;
+  console.log(`[Billing Sandbox] Sessão gerada para fazenda ${id_fazenda}. Redirecionando para ${urlSandbox}`);
+  
+  return {
+    url: urlSandbox,
+    id_sessao: `sess_${Math.random().toString(36).substr(2, 9)}`
+  };
+}
+
+/**
+ * Retorna dados fictícios de faturamento baseados no plano da fazenda
+ */
+export async function obterStatusFaturamento(id_fazenda, planoAtual) {
+  if (planoAtual !== 'Inteligente') {
+    return {
+      plano: 'Essencial',
+      valor: 40.00,
+      renovacao: null,
+      metodoPagamento: null,
+      recibos: []
+    };
+  }
+  
+  return {
+    plano: 'Inteligente',
+    valor: 110.00,
+    renovacao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+    metodoPagamento: 'Cartão de Crédito (Visa **** 4242)',
+    recibos: [
+      { id: 'inv_01', data: '10/05/2026', valor: 110.00, status: 'pago' },
+      { id: 'inv_02', data: '10/04/2026', valor: 110.00, status: 'pago' }
+    ]
+  };
+}
+
+/**
+ * Atualiza o plano da fazenda
+ */
+export async function atualizarPlanoFazenda(id_fazenda, plano) {
+  try {
+    const fazendaRef = doc(db, 'fazendas', id_fazenda);
+    await updateDoc(fazendaRef, { plano });
+  } catch (error) {
+    console.error(`[Firestore] Falha ao atualizar plano para ${plano} na fazenda ${id_fazenda}:`, error);
+    throw error;
+  }
+}
+
+// ─── AUDITORIA E EXPORTAÇÃO ───────────────────────────────────────────────────
+
+/**
+ * Registra a auditoria de geração de relatório CSV
+ */
+export async function registrarExportacao(id_fazenda, uid_usuario, tipoRelatorio, filtros = {}) {
+  try {
+    const exportRef = collection(db, 'fazendas', id_fazenda, 'logs_exportacao');
+    await addDoc(exportRef, {
+      uid_usuario,
+      tipoRelatorio,
+      filtros,
+      data_exportacao: serverTimestamp()
+    });
+  } catch (error) {
+    console.error(`[Firestore] Falha ao registrar log de exportação na fazenda ${id_fazenda}:`, error);
+  }
+}
+
+/**
+ * Registra a auditoria de sincronização de dados offline
+ */
+export async function registrarSyncOffline(id_fazenda, uid_usuario, logsSync = {}) {
+  try {
+    const syncRef = collection(db, 'fazendas', id_fazenda, 'logs_sync');
+    await addDoc(syncRef, {
+      uid_usuario,
+      transacoesSync: logsSync,
+      data_sync: serverTimestamp()
+    });
+  } catch (error) {
+    console.error(`[Firestore] Falha ao registrar log de sync offline na fazenda ${id_fazenda}:`, error);
+  }
+}
+
+// ─── ONBOARDING E UX ──────────────────────────────────────────────────────────
+
+/**
+ * Verifica se o usuário concluiu o onboarding. Retorna falso por padrão.
+ * @param {string} uid
+ * @returns {Promise<boolean>}
+ */
+export async function verificarStatusOnboarding(uid) {
+  try {
+    const userDocRef = doc(db, 'usuarios', uid);
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) {
+      return docSnap.data().onboarding_concluido === true;
+    }
+    return false;
+  } catch (error) {
+    console.error(`[Firestore] Erro ao verificar onboarding para uid ${uid}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Marca o onboarding como concluído para o usuário.
+ * @param {string} uid
+ */
+export async function concluirOnboarding(uid) {
+  try {
+    const userDocRef = doc(db, 'usuarios', uid);
+    await setDoc(userDocRef, { onboarding_concluido: true }, { merge: true });
+  } catch (error) {
+    console.error(`[Firestore] Erro ao concluir onboarding para uid ${uid}:`, error);
+  }
+}
+
+

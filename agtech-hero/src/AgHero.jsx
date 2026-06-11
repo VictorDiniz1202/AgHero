@@ -8,9 +8,11 @@ import Configuracoes from "./components/Configuracoes";
 import CentralBI from "./components/CentralBI";
 import CalendarioManejo from "./components/CalendarioManejo";
 import GestaoFinanceira from "./components/GestaoFinanceira";
+import CentroRelatorios from "./components/CentroRelatorios";
 import Login from "./components/Login";
 import { auth } from "./firebase/config";
-import { obterFazendaDoUsuario } from "./firebase/services";
+import { obterFazendaDoUsuario, vincularColaboradorSePendente, verificarStatusOnboarding } from "./firebase/services";
+import Onboarding from "./components/Onboarding";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
@@ -556,12 +558,69 @@ const PublicLanding = ({ onAcessarSistema }) => {
 
 // ─── Root Export ─────────────────────────────────────────────────────
 
+const PWABadge = () => {
+  const swObj = useRegisterSW();
+  const needRefresh = swObj?.needRefresh?.[0] || false;
+  const setNeedRefresh = swObj?.needRefresh?.[1] || (() => {});
+  const updateServiceWorker = swObj?.updateServiceWorker || (() => {});
+
+  if (!needRefresh) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[9999] bg-forest-dark text-white p-4 rounded-xl shadow-2xl flex items-center gap-4 animate-slide-up border border-white/20">
+      <div className="flex-1">
+        <p className="text-sm font-bold">Nova versão disponível!</p>
+        <p className="text-xs text-white/70">Clique para atualizar o AgHero.</p>
+      </div>
+      <button onClick={() => updateServiceWorker(true)} className="px-3 py-1.5 bg-vivid-emerald text-white text-xs font-bold rounded-lg hover:scale-105 transition-transform">
+        Atualizar
+      </button>
+      <button onClick={() => setNeedRefresh(false)} className="text-white/50 hover:text-white">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+  );
+};
+
+// Helper para injetar o wrapper da animação do sistema
+const SystemWrapper = ({ children, deferredPrompt, setDeferredPrompt, onInstallClick }) => (
+  <div className="fixed inset-0 w-full h-full overflow-hidden bg-offwhite font-sans text-forest-dark system-enter flex flex-col">
+    {/* Fundo orgânico global para o sistema */}
+    <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+    <div className="absolute bottom-0 left-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-vivid-teal/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+    
+    <PWABadge />
+    {/* PWA Install Banner */}
+    {deferredPrompt && (
+      <div className="relative z-50 bg-gradient-to-r from-forest-dark to-forest text-white px-4 py-3 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 animate-slide-down">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
+            <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button onClick={() => setDeferredPrompt(null)} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white/70 hover:text-white transition-colors">Agora Não</button>
+          <button onClick={onInstallClick} className="flex-1 sm:flex-none px-4 py-2 bg-vivid-emerald hover:bg-vivid-lime text-white text-xs font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">Instalar</button>
+        </div>
+      </div>
+    )}
+
+    {children}
+    {mostrarOnboarding && <Onboarding onFechar={() => setMostrarOnboarding(false)} />}
+  </div>
+);
+
 export default function AgHero() {
   const [tela, setTela] = useState("landing");
   const [dataRetroativa, setDataRetroativa] = useState(null);
   const [fazendaAtiva, setFazendaAtiva] = useState("fazenda_demo_123");
   const [papelUsuario, setPapelUsuario] = useState("dono");
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -583,23 +642,48 @@ export default function AgHero() {
       if (user) {
         if (user.uid === 'dono_demo_123' || user.email === 'demo@aghero.com') {
            setFazendaAtiva('fazenda_demo_123');
-           setPapelUsuario('dono');
+           setPapelUsuario('owner');
            return;
         }
+
+        // Auto-vincula o colaborador caso ele tenha sido convidado
+        await vincularColaboradorSePendente(user.uid, user.email, user.displayName);
 
         const fazenda = await obterFazendaDoUsuario(user.uid);
         if (fazenda) {
           setFazendaAtiva(fazenda.id_fazenda);
-          setPapelUsuario(fazenda.membros?.[user.uid] || 'peao');
+          let role = fazenda.papelColaborador || fazenda.membros?.[user.uid] || 'operator';
+          if (role === 'dono') role = 'owner';
+          if (role === 'peao') role = 'operator';
+          setPapelUsuario(role);
         }
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Blinda a tela de Configurações: peões nunca devem permanecer nela
   useEffect(() => {
-    if (tela === "configuracoes" && papelUsuario === "peao") {
+    const checarOnboarding = async () => {
+      const user = auth.currentUser;
+      if (user && fazendaAtiva && tela !== "landing" && tela !== "login") {
+        const concluiu = await verificarStatusOnboarding(user.uid);
+        if (!concluiu) {
+          setMostrarOnboarding(true);
+        }
+      }
+    };
+    checarOnboarding();
+  }, [fazendaAtiva, tela]);
+
+  // Blinda telas restritas: operadores não acessam configurações/finanças/BI
+  useEffect(() => {
+    const ehOperador = papelUsuario === "peao" || papelUsuario === "operator";
+    const ehOwner = papelUsuario === "dono" || papelUsuario === "owner";
+
+    if ((tela === "configuracoes" || tela === "bi") && ehOperador) {
+      setTela("dashboard");
+    }
+    if (tela === "financeiro" && !ehOwner) {
       setTela("dashboard");
     }
   }, [tela, papelUsuario]);
@@ -617,67 +701,14 @@ export default function AgHero() {
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then((choiceResult) => {
         if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
+          // Usuário aceitou a instalação
         }
         setDeferredPrompt(null);
       });
     }
   };
 
-  const PWABadge = () => {
-    const swObj = useRegisterSW();
-    const needRefresh = swObj?.needRefresh?.[0] || false;
-    const setNeedRefresh = swObj?.needRefresh?.[1] || (() => {});
-    const updateServiceWorker = swObj?.updateServiceWorker || (() => {});
 
-    if (!needRefresh) return null;
-
-    return (
-      <div className="fixed bottom-4 right-4 z-[9999] bg-forest-dark text-white p-4 rounded-xl shadow-2xl flex items-center gap-4 animate-slide-up border border-white/20">
-        <div className="flex-1">
-          <p className="text-sm font-bold">Nova versão disponível!</p>
-          <p className="text-xs text-white/70">Clique para atualizar o AgHero.</p>
-        </div>
-        <button onClick={() => updateServiceWorker(true)} className="px-3 py-1.5 bg-vivid-emerald text-white text-xs font-bold rounded-lg hover:scale-105 transition-transform">
-          Atualizar
-        </button>
-        <button onClick={() => setNeedRefresh(false)} className="text-white/50 hover:text-white">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
-    );
-  };
-
-  // Helper para injetar o wrapper da animação do sistema
-  const SystemWrapper = ({ children }) => (
-    <div className="fixed inset-0 w-full h-full overflow-hidden bg-offwhite font-sans text-forest-dark system-enter flex flex-col">
-      {/* Fundo orgânico global para o sistema */}
-      <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-vivid-teal/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-      
-      <PWABadge />
-      {/* PWA Install Banner */}
-      {deferredPrompt && (
-        <div className="relative z-50 bg-gradient-to-r from-forest-dark to-forest text-white px-4 py-3 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 animate-slide-down">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            </div>
-            <div>
-              <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
-              <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button onClick={() => setDeferredPrompt(null)} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white/70 hover:text-white transition-colors">Agora Não</button>
-            <button onClick={handleInstallClick} className="flex-1 sm:flex-none px-4 py-2 bg-vivid-emerald hover:bg-vivid-lime text-white text-xs font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">Instalar</button>
-          </div>
-        </div>
-      )}
-
-      {children}
-    </div>
-  );
 
   if (tela === "login") {
     return (
@@ -693,7 +724,7 @@ export default function AgHero() {
 
   if (tela === "dashboard") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <DashboardReal
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
@@ -709,6 +740,7 @@ export default function AgHero() {
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
         />
       </SystemWrapper>
     );
@@ -716,24 +748,24 @@ export default function AgHero() {
 
   if (tela === "lotes") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <GestaoLotes id_fazenda={fazendaAtiva} papelUsuario={papelUsuario} onVoltar={() => setTela("dashboard")} />
       </SystemWrapper>
     );
   }
 
   if (tela === "configuracoes") {
-    if (papelUsuario === "peao") return null;
+    if (papelUsuario === "peao" || papelUsuario === "operator") return null;
     return (
-      <SystemWrapper>
-        <Configuracoes id_fazenda={fazendaAtiva} onVoltar={() => setTela("dashboard")} />
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
+        <Configuracoes id_fazenda={fazendaAtiva} papelUsuario={papelUsuario} onVoltar={() => setTela("dashboard")} />
       </SystemWrapper>
     );
   }
 
   if (tela === "formulario") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <FormularioManejo
           id_fazenda={fazendaAtiva}
           onVoltar={() => {
@@ -747,8 +779,9 @@ export default function AgHero() {
   }
 
   if (tela === "bi") {
+    if (papelUsuario === "peao" || papelUsuario === "operator") return null;
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <CentralBI
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
@@ -764,6 +797,7 @@ export default function AgHero() {
             setTela("formulario");
           }}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
         />
       </SystemWrapper>
     );
@@ -771,9 +805,10 @@ export default function AgHero() {
 
   if (tela === "calendario") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <CalendarioManejo
           id_fazenda={fazendaAtiva}
+          papelUsuario={papelUsuario}
           onVoltar={() => setTela("dashboard")}
           onLancarRetroativo={(dataStr) => {
             setDataRetroativa(dataStr);
@@ -787,6 +822,7 @@ export default function AgHero() {
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
         />
       </SystemWrapper>
     );
@@ -794,7 +830,7 @@ export default function AgHero() {
 
   if (tela === "nutricao") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <DashboardNutricao
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
@@ -810,6 +846,7 @@ export default function AgHero() {
           onAbrirCalendario={() => setTela("calendario")}
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
         />
       </SystemWrapper>
     );
@@ -817,7 +854,7 @@ export default function AgHero() {
 
   if (tela === "agua") {
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <DashboardAgua
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
@@ -833,14 +870,16 @@ export default function AgHero() {
           onAbrirCalendario={() => setTela("calendario")}
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
         />
       </SystemWrapper>
     );
   }
 
   if (tela === "financeiro") {
+    if (papelUsuario !== "dono" && papelUsuario !== "owner") return null;
     return (
-      <SystemWrapper>
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
         <GestaoFinanceira
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
@@ -854,6 +893,29 @@ export default function AgHero() {
           onAbrirCalendario={() => setTela("calendario")}
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
+          onAbrirRelatorios={() => setTela("relatorios")}
+        />
+      </SystemWrapper>
+    );
+  }
+
+  if (tela === "relatorios") {
+    return (
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
+        <CentroRelatorios
+          id_fazenda={fazendaAtiva}
+          papelUsuario={papelUsuario}
+          onVoltar={() => setTela("dashboard")}
+          onAbrirDashboard={() => setTela("dashboard")}
+          onAbrirFormulario={() => {
+            setDataRetroativa(null);
+            setTela("formulario");
+          }}
+          onAbrirBI={() => setTela("bi")}
+          onAbrirCalendario={() => setTela("calendario")}
+          onAbrirNutricao={() => setTela("nutricao")}
+          onAbrirAgua={() => setTela("agua")}
+          onAbrirFinanceiro={() => setTela("financeiro")}
         />
       </SystemWrapper>
     );

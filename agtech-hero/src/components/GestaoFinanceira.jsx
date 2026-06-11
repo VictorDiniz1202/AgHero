@@ -10,7 +10,8 @@ export default function GestaoFinanceira({
   onAbrirNutricao,
   onAbrirAgua,
   onAbrirBI,
-  onAbrirCalendario
+  onAbrirCalendario,
+  onAbrirRelatorios
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,12 +61,14 @@ export default function GestaoFinanceira({
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="financeiro"
+        papelUsuario={papelUsuario}
         onAbrirDashboard={onAbrirDashboard}
         onAbrirFormulario={onAbrirFormulario}
         onAbrirNutricao={onAbrirNutricao}
         onAbrirAgua={onAbrirAgua}
         onAbrirBI={onAbrirBI}
         onAbrirCalendario={onAbrirCalendario}
+        onAbrirRelatorios={onAbrirRelatorios}
         onSair={onVoltar}
       />
 

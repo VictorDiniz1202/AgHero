@@ -75,22 +75,46 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    key: "relatorios",
+    label: "Relatórios",
+    prop: "onAbrirRelatorios",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
 ];
 
 /**
  * Sidebar de navegação unificada (desktop fixo + drawer mobile).
  * Mantém a navegação idêntica em todas as telas autenticadas do AgHero.
+ *
+ * Restrição por papel (`papelUsuario`):
+ * - operator/peao: oculta Gestão Financeira e Central BI.
+ * - veterinarian: oculta apenas Gestão Financeira.
+ * - owner/dono: vê todos os itens.
  */
-export default function SidebarMenu({ menuAberto, setMenuAberto, telaAtiva, onSair, ...handlers }) {
+export default function SidebarMenu({ menuAberto, setMenuAberto, telaAtiva, onSair, papelUsuario, ...handlers }) {
+  const ehOperador = papelUsuario === 'peao' || papelUsuario === 'operator';
+  const ehOwner = papelUsuario === 'dono' || papelUsuario === 'owner';
+
+  const itensVisiveis = NAV_ITEMS.filter((item) => {
+    if (item.key === 'financeiro') return ehOwner;
+    if (item.key === 'bi') return !ehOperador;
+    return true;
+  });
+
   return (
     <>
       {menuAberto && (
         <div
-          className="fixed inset-0 bg-forest-dark/20 backdrop-blur-sm z-40 lg:hidden"
+          className="no-print fixed inset-0 bg-forest-dark/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setMenuAberto(false)}
         />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/60 border-r border-forest-light/10 flex flex-col justify-between backdrop-blur-2xl transition-transform duration-300 lg:relative lg:translate-x-0 ${menuAberto ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`no-print fixed inset-y-0 left-0 z-50 w-64 bg-white/60 border-r border-forest-light/10 flex flex-col justify-between backdrop-blur-2xl transition-transform duration-300 lg:relative lg:translate-x-0 ${menuAberto ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 space-y-8 overflow-y-auto">
           {/* Logo & Close */}
           <div className="flex items-center justify-between">
@@ -110,7 +134,7 @@ export default function SidebarMenu({ menuAberto, setMenuAberto, telaAtiva, onSa
 
           {/* Navigation */}
           <nav className="space-y-2">
-            {NAV_ITEMS.map((item) => {
+            {itensVisiveis.map((item) => {
               const ativo = item.key === telaAtiva;
               const handler = handlers[item.prop];
               return (

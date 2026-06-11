@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { obterAlertasEnviados, obterFazenda } from '../firebase/services';
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import ModalUpsell from './ModalUpsell';
 import SidebarMenu from './SidebarMenu';
 
@@ -20,7 +20,7 @@ function prepararSvgResponsivo(svgString) {
   return svg;
 }
 
-export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirCalendario, onAbrirDashboard, onAbrirLotes, onAbrirConfiguracoes, onAbrirFormulario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro }) {
+export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirCalendario, onAbrirDashboard, onAbrirLotes, onAbrirConfiguracoes, onAbrirFormulario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios }) {
   const [modalUpsellAberto, setModalUpsellAberto] = useState(false);
   const [mensagens, setMensagens] = useState([
     {
@@ -33,25 +33,39 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   const [input, setInput] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [limites, setLimites] = useState({ enviosHoje: 0, plano: 'Essencial', max: 3 });
-  const messagesEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Rola APENAS o container interno do chat — nunca a janela.
+    // scrollIntoView() propaga o scroll para todos os ancestrais (inclusive o
+    // window), e como o SystemWrapper é `fixed inset-0`, isso empurrava o app
+    // inteiro para cima ao entrar na aba. Rolar o container evita esse efeito.
+    const container = chatScrollRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
   }, [mensagens]);
 
   useEffect(() => {
     if (!id_fazenda) return;
-    obterFazenda(id_fazenda).then(fazenda => {
-      const plano = fazenda?.plano || 'Essencial';
-      const hoje = new Date().toISOString().split('T')[0];
-      const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
-      getDoc(limitRef).then(docSnap => {
-        let envios = 0;
-        if (docSnap.exists()) envios = docSnap.data().envios || 0;
-        setLimites({ enviosHoje: envios, plano, max: 3 });
-      });
+    
+    const unsubFazenda = onSnapshot(doc(db, 'fazendas', id_fazenda), (docSnap) => {
+      if (docSnap.exists()) {
+        const fazenda = docSnap.data();
+        const plano = fazenda?.plano || 'Essencial';
+        
+        const hoje = new Date().toISOString().split('T')[0];
+        const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
+        getDoc(limitRef).then(limitSnap => {
+          let envios = 0;
+          if (limitSnap.exists()) envios = limitSnap.data().envios || 0;
+          setLimites({ enviosHoje: envios, plano, max: 3 });
+        });
+      }
     });
+    
+    return () => unsubFazenda();
   }, [id_fazenda]);
 
   async function atualizarEnvioLimite() {
@@ -139,6 +153,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="bi"
+        papelUsuario={papelUsuario}
         onAbrirDashboard={onAbrirDashboard}
         onAbrirLotes={onAbrirLotes}
         onAbrirConfiguracoes={onAbrirConfiguracoes}
@@ -147,6 +162,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
         onAbrirAgua={onAbrirAgua}
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
         onSair={onVoltar}
       />
 
@@ -172,7 +188,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 flex justify-center">
+        <main ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 flex justify-center">
           <div className="w-full max-w-3xl flex flex-col space-y-4">
             <HistoricoAlertas
               id_fazenda={id_fazenda}
@@ -189,7 +205,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
                     ? 'bg-gradient-to-br from-vivid-emerald to-vivid-teal text-white rounded-tr-sm'
                     : msg.role === 'system'
                       ? 'bg-agriAlert-red/10 text-agriAlert-red border border-agriAlert-red/20 text-center w-full rounded-xl text-xs'
-                      : 'glass-panel bg-white/70 border border-white/60 text-forest-dark rounded-tl-sm'
+                      : 'bg-white/90 shadow-md border border-white/60 text-forest-dark rounded-tl-sm'
                 }`}>
                   {/* Se a resposta contiver SVG, renderiza como gráfico responsivo; se for HTML, injeta direto; senão, texto puro */}
                   {ehSvg ? (
@@ -205,14 +221,13 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
             })}
             {carregando && (
               <div className="flex justify-start">
-                <div className="glass-panel bg-white/70 border border-white/60 rounded-2xl rounded-tl-sm p-4 flex gap-1.5 shadow-sm">
+                <div className="bg-white/90 shadow-md border border-white/60 rounded-2xl rounded-tl-sm p-4 flex gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-bounce" style={{ animationDelay: '0ms' }}></span>
                   <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-bounce" style={{ animationDelay: '150ms' }}></span>
                   <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-bounce" style={{ animationDelay: '300ms' }}></span>
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
         </main>
 
@@ -232,8 +247,13 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onFocus={() => {
+                // Após o teclado virtual abrir, rola o container do chat (não a
+                // janela) para manter a última mensagem visível acima do input.
                 setTimeout(() => {
-                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  const container = chatScrollRef.current;
+                  if (container) {
+                    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                  }
                 }, 300);
               }}
               disabled={carregando || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
@@ -252,7 +272,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
       </div>
 
       {modalUpsellAberto && (
-        <ModalUpsell onFechar={() => setModalUpsellAberto(false)} />
+        <ModalUpsell id_fazenda={id_fazenda} onFechar={() => setModalUpsellAberto(false)} />
       )}
     </div>
   );
@@ -322,7 +342,7 @@ function CardAlerta({ alerta, papelUsuario, onAbrirUpsell }) {
   }, [avisoPermissao]);
 
   function handleClickBadgeBloqueado() {
-    if (papelUsuario === 'dono') {
+    if (papelUsuario === 'dono' || papelUsuario === 'owner') {
       onAbrirUpsell?.();
     } else {
       setAvisoPermissao(true);

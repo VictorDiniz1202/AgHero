@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_OTHER",
+  "summary":  "Structured prompt for Claude 3.5 Sonnet to develop the Farm Settings and WhatsApp/Alert Thresholds component (Sprint B) in the AgTech React application. Includes PREP-C framework details, code architecture, and testing instructions.",
+  "updatedAt":  "2026-06-11T04:13:03.485002600Z",
+  "requestFeedback":  true
+}

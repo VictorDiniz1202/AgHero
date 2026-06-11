@@ -19,7 +19,7 @@ function formatarDataStr(date) {
   return `${ano}-${mes}-${dia}`;
 }
 
-export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro }) {
+export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -174,12 +174,14 @@ export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, 
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="nutricao"
+        papelUsuario={papelUsuario}
         onAbrirDashboard={onAbrirDashboard}
         onAbrirFormulario={onAbrirFormulario}
         onAbrirAgua={onAbrirAgua}
         onAbrirBI={onAbrirBI}
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
         onSair={onVoltar}
       />
 
@@ -250,7 +252,7 @@ export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, 
               <section className={`reveal-left lg:col-span-1 glass-panel rounded-3xl p-6 shadow-sm flex flex-col items-center text-center transition-all ${estoqueCritico ? 'ring-2 ring-agriAlert-red/40 animate-pulse' : ''}`}>
                 <div className="flex items-center justify-between w-full mb-4">
                   <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Silo Virtual</h2>
-                  {papelUsuario !== 'peao' && (
+                  {papelUsuario !== 'peao' && papelUsuario !== 'operator' && (
                     <button
                       onClick={handleAbrirEdicaoCapacidade}
                       title="Editar capacidade máxima"

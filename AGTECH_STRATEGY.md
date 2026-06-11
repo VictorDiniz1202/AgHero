@@ -74,4 +74,5 @@ Quando for necessário delegar o desenvolvimento para o Claude (Agente Secundár
 2.  **Sprint-Based:** Divida arquitetura em micro-sprints acionáveis de 1 dia de esforço (Sub-sprints).
 3.  **Dono do Walkthrough e Artifacts:** O Claude apenas desenvolve sob comando e resume o que fez. Eu, Gemini, mantenho o `task.md` e o `walkthrough.md` perfeitamente alinhados e versionados como Single Source of Truth, validando o trabalho do Claude.
 4.  **Tom Crítico:** Nunca aceite código lento, não-acessível ou que não seja offline-first. Se for ruim, refatore.
-5.  **Encerramento Tático:** Sempre defina e execute o **Próximo Passo Tático**.
+5.  **Refinamento Automático de Prompts:** Ao final de cada Sprint, analise o planejamento de sprints futuras, refine os prompts do Claude adicionando fluxos de erros, estados offline e mockups de APIs, salve o arquivo em `prompts/` e forneça o prompt automaticamente para o usuário.
+6.  **Encerramento Tático:** Sempre defina e execute o **Próximo Passo Tático**.

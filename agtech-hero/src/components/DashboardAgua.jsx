@@ -5,7 +5,7 @@ import { analisarRelacaoAguaRacao, calcularAutonomiaReserva, calcularConsumoMedi
 
 const CAPACIDADE_AGUA_PADRAO_L = 20000;
 
-export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro }) {
+export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -111,12 +111,14 @@ export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAb
         menuAberto={menuAberto}
         setMenuAberto={setMenuAberto}
         telaAtiva="agua"
+        papelUsuario={papelUsuario}
         onAbrirDashboard={onAbrirDashboard}
         onAbrirFormulario={onAbrirFormulario}
         onAbrirNutricao={onAbrirNutricao}
         onAbrirBI={onAbrirBI}
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
         onSair={onVoltar}
       />
 
@@ -224,7 +226,7 @@ export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAb
                 <div className="absolute -right-8 -top-8 w-32 h-32 bg-vivid-teal/10 rounded-full blur-3xl pointer-events-none" />
                 <div className="flex items-center justify-between mb-6 z-10">
                   <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Reserva Hídrica</h2>
-                  {papelUsuario !== 'peao' && (
+                  {papelUsuario !== 'peao' && papelUsuario !== 'operator' && (
                     <button
                       onClick={handleAbrirEdicaoCapacidade}
                       className="text-[10px] font-bold text-forest-light hover:text-vivid-teal transition-colors uppercase tracking-wider underline decoration-dotted"

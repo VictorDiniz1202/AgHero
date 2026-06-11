@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_TASK",
+  "summary":  "Prompt definition file for Sprint 12 (WhatsApp alerts & n8n Integration). Breaks down Sprint 12 into sub-sprints for Gemini (DB services & setup validation) and Claude (webhook integration, logic, and history UI).",
+  "updatedAt":  "2026-06-11T12:17:08.945311700Z"
+}

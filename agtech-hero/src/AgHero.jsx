@@ -928,6 +928,20 @@ export default function AgHero() {
           id_fazenda={fazendaAtiva}
           papelUsuario={papelUsuario}
           onVoltar={() => setTela("dashboard")}
+          onAbrirDashboard={() => setTela("dashboard")}
+          onAbrirFormulario={() => {
+            setDataRetroativa(null);
+            setTela("formulario");
+          }}
+          onAbrirLotes={() => setTela("lotes")}
+          onAbrirConfiguracoes={() => setTela("configuracoes")}
+          onAbrirBI={() => setTela("bi")}
+          onAbrirCalendario={() => setTela("calendario")}
+          onAbrirNutricao={() => setTela("nutricao")}
+          onAbrirAgua={() => setTela("agua")}
+          onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );

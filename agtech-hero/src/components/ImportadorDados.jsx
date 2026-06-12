@@ -1,8 +1,25 @@
 import React, { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { importarDadosLote, adicionarLote, obterLotesAtivos } from '../firebase/services';
+import SidebarMenu from './SidebarMenu';
 
-export default function ImportadorDados({ id_fazenda }) {
+export default function ImportadorDados({ 
+  id_fazenda,
+  papelUsuario,
+  onVoltar,
+  onAbrirDashboard,
+  onAbrirFormulario,
+  onAbrirLotes,
+  onAbrirConfiguracoes,
+  onAbrirBI,
+  onAbrirCalendario,
+  onAbrirNutricao,
+  onAbrirAgua,
+  onAbrirFinanceiro,
+  onAbrirRelatorios,
+  onAbrirImportador
+}) {
+  const [menuAberto, setMenuAberto] = useState(false);
   const [file, setFile] = useState(null);
   const [headers, setHeaders] = useState([]);
   const [dataPreview, setDataPreview] = useState([]);
@@ -211,29 +228,92 @@ export default function ImportadorDados({ id_fazenda }) {
 
   if (success) {
     return (
-      <div className="flex-1 p-8 flex flex-col items-center justify-center">
-        <div className="glass-panel p-10 flex flex-col items-center max-w-lg text-center">
-          <div className="w-20 h-20 bg-vivid-emerald/20 text-vivid-emerald rounded-full flex items-center justify-center text-4xl mb-6">✅</div>
-          <h2 className="text-2xl font-bold text-forest-dark mb-4">Importação Concluída!</h2>
-          <p className="text-forest-light mb-8">Sua planilha foi processada com sucesso. Os registros diários e transações financeiras já estão contabilizados no sistema.</p>
-          <button onClick={() => { setStep(1); setSuccess(false); setFile(null); }} className="px-6 py-3 bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white rounded-xl font-bold shadow-md hover:scale-105 transition-transform">
-            Importar Nova Planilha
-          </button>
+      <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+        <SidebarMenu
+          menuAberto={menuAberto}
+          setMenuAberto={setMenuAberto}
+          telaAtiva="importador"
+          papelUsuario={papelUsuario}
+          onSair={onVoltar}
+          onAbrirDashboard={onAbrirDashboard}
+          onAbrirFormulario={onAbrirFormulario}
+          onAbrirLotes={onAbrirLotes}
+          onAbrirConfiguracoes={onAbrirConfiguracoes}
+          onAbrirBI={onAbrirBI}
+          onAbrirCalendario={onAbrirCalendario}
+          onAbrirNutricao={onAbrirNutricao}
+          onAbrirAgua={onAbrirAgua}
+          onAbrirFinanceiro={onAbrirFinanceiro}
+          onAbrirRelatorios={onAbrirRelatorios}
+          onAbrirImportador={onAbrirImportador}
+        />
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
+          <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
+            <div className="flex items-center gap-4">
+              <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+              <div>
+                <h1 className="text-lg lg:text-xl font-heading font-bold text-forest-dark tracking-tight leading-none">
+                  Importador de Planilhas
+                </h1>
+              </div>
+            </div>
+          </header>
+          <div className="flex-1 p-8 flex flex-col items-center justify-center overflow-y-auto">
+            <div className="glass-panel p-10 flex flex-col items-center max-w-lg text-center">
+              <div className="w-20 h-20 bg-vivid-emerald/20 text-vivid-emerald rounded-full flex items-center justify-center text-4xl mb-6">✅</div>
+              <h2 className="text-2xl font-bold text-forest-dark mb-4">Importação Concluída!</h2>
+              <p className="text-forest-light mb-8">Sua planilha foi processada com sucesso. Os registros diários e transações financeiras já estão contabilizados no sistema.</p>
+              <button onClick={() => { setStep(1); setSuccess(false); setFile(null); }} className="px-6 py-3 bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white rounded-xl font-bold shadow-md hover:scale-105 transition-transform">
+                Importar Nova Planilha
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-offwhite min-h-screen">
-      <div className="max-w-4xl mx-auto space-y-6">
-        
-        <header>
-          <h1 className="text-2xl font-bold text-forest-dark flex items-center gap-2">
-            📊 Importador de Planilhas
-          </h1>
-          <p className="text-forest-light mt-1">Integre seu histórico do Excel ou CSV diretamente para a inteligência do AgTech Hero.</p>
+    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
+      <SidebarMenu
+        menuAberto={menuAberto}
+        setMenuAberto={setMenuAberto}
+        telaAtiva="importador"
+        papelUsuario={papelUsuario}
+        onSair={onVoltar}
+        onAbrirDashboard={onAbrirDashboard}
+        onAbrirFormulario={onAbrirFormulario}
+        onAbrirLotes={onAbrirLotes}
+        onAbrirConfiguracoes={onAbrirConfiguracoes}
+        onAbrirBI={onAbrirBI}
+        onAbrirCalendario={onAbrirCalendario}
+        onAbrirNutricao={onAbrirNutricao}
+        onAbrirAgua={onAbrirAgua}
+        onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
+      />
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
+        <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
+          <div className="flex items-center gap-4">
+            <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div>
+              <h1 className="text-lg lg:text-xl font-heading font-bold text-forest-dark tracking-tight leading-none">
+                📊 Importador de Planilhas
+              </h1>
+              <p className="hidden sm:block text-xs font-semibold text-forest-light/80 mt-1 uppercase tracking-wider">
+                Integre seu histórico do Excel ou CSV
+              </p>
+            </div>
+          </div>
         </header>
+
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-6 pb-12">
 
         {/* STEP 1: Upload */}
         {step === 1 && (
@@ -356,6 +436,8 @@ export default function ImportadorDados({ id_fazenda }) {
             </div>
           </div>
         )}
+        </div>
+        </main>
       </div>
     </div>
   );

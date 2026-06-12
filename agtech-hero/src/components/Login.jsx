@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { loginComEmail, criarConta, obterFazendaDoUsuario } from '../firebase/services';
 import { auth } from '../firebase/config';
+import { traduzirErroAuth } from '../utils/tradutorErros';
 
 export default function Login({ onLoginSuccess, onVoltar }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -38,7 +39,7 @@ export default function Login({ onLoginSuccess, onVoltar }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Erro na autenticação.');
+      setErrorMsg(traduzirErroAuth(err));
     } finally {
       setLoading(false);
     }

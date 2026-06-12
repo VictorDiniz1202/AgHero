@@ -374,7 +374,7 @@ function classificarITU(itu) {
   return { nivel: 'confortavel', label: 'Confortável', corTexto: 'text-vivid-emerald', corFundo: 'bg-vivid-emerald/10', corBorda: 'border-vivid-emerald/30', pulsante: false };
 }
 
-export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios }) {
+export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);

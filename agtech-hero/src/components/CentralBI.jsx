@@ -22,7 +22,7 @@ function prepararSvgResponsivo(svgString) {
   return svg;
 }
 
-export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirCalendario, onAbrirDashboard, onAbrirLotes, onAbrirConfiguracoes, onAbrirFormulario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios }) {
+export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirCalendario, onAbrirDashboard, onAbrirLotes, onAbrirConfiguracoes, onAbrirFormulario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [modalUpsellAberto, setModalUpsellAberto] = useState(false);
   const [mensagens, setMensagens] = useState([
     {

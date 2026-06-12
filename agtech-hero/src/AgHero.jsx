@@ -191,7 +191,8 @@ const Navbar = ({ onAcessarSistema }) => {
               onClick={(e) => { e.preventDefault(); onAcessarSistema(); }}
               className="hidden sm:inline-flex items-center gap-2 px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:scale-105 transition-all duration-300"
             >
-              Acessar Sistema
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+              Login
             </a>
             <button className="md:hidden p-2 text-forest-dark" onClick={() => setMobileOpen(!mobileOpen)}>
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -222,9 +223,10 @@ const Navbar = ({ onAcessarSistema }) => {
               <a
                 href="#"
                 onClick={(e) => { e.preventDefault(); setMobileOpen(false); onAcessarSistema(); }}
-                className="block text-center px-4 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold"
+                className="block text-center px-4 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold flex items-center justify-center gap-2"
               >
-                Acessar Sistema
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                Login
               </a>
             </div>
           </div>
@@ -430,9 +432,12 @@ const PricingSection = () => (
 
         {/* Inteligente */}
         <div className="reveal relative rounded-[2rem] p-[2px] bg-gradient-to-br from-vivid-emerald to-vivid-lime shadow-[0_20px_60px_-15px_rgba(16,185,129,0.4)] transition-transform hover:-translate-y-2 z-10 flex flex-col h-full">
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-forest-dark rounded-full border border-vivid-emerald/50 shadow-md">
-            <span className="text-[10px] font-bold text-vivid-emerald uppercase tracking-widest whitespace-nowrap flex items-center gap-1">
-              <span className="text-sm leading-none">✨</span> Mais Escolhido
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-forest-dark rounded-full border border-vivid-emerald/50 shadow-lg flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-vivid-lime drop-shadow-[0_0_8px_rgba(132,204,22,0.8)]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+            </svg>
+            <span className="text-[10px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-vivid-emerald to-vivid-lime uppercase tracking-widest whitespace-nowrap drop-shadow-sm">
+              Mais Escolhido
             </span>
           </div>
           <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] p-8 flex flex-col flex-1 relative overflow-hidden">

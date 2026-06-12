@@ -53,11 +53,10 @@ class ErrorBoundary extends React.Component {
               Recarregar Aplicativo
             </button>
             
-            {/* Opcional: mostrar erro em dev */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-6 text-left p-3 bg-red-50 text-red-800 rounded-lg text-xs overflow-auto max-h-40">
-                <summary className="font-bold cursor-pointer">Detalhes do erro (Dev Only)</summary>
-                <pre className="mt-2 whitespace-pre-wrap">
+            {this.state.error && (
+              <details className="mt-6 text-left p-3 bg-red-50 text-red-800 rounded-lg text-xs overflow-auto max-h-40 border border-red-200 shadow-inner">
+                <summary className="font-bold cursor-pointer">Detalhes Técnicos do Erro</summary>
+                <pre className="mt-2 whitespace-pre-wrap font-mono text-[10px]">
                   {this.state.error.toString()}
                   <br />
                   {this.state.errorInfo?.componentStack}

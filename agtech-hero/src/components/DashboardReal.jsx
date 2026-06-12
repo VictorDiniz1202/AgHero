@@ -1067,7 +1067,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                   </div>
 
                   <div className="flex flex-wrap gap-3 sm:grid sm:grid-cols-3">
-                    {previsaoClimatica.previsoes.map((dia) => {
+                    {previsaoClimatica?.previsoes?.map((dia) => {
                       const estilos = {
                         critico: 'bg-agriAlert-red/10 border-agriAlert-red/30 text-agriAlert-red animate-pulse',
                         alerta: 'bg-agriAlert-orange/10 border-agriAlert-orange/20 text-agriAlert-orange',

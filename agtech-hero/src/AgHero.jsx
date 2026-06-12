@@ -236,7 +236,7 @@ const Navbar = ({ onAcessarSistema }) => {
 
 // ─── Sections ───────────────────────────────────────────────────────
 
-const HeroSection = () => (
+const HeroSection = ({ onComeçar }) => (
   <section id="inicio" className="relative overflow-hidden pt-12 pb-16 sm:pt-20 sm:pb-24">
     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center">
@@ -249,11 +249,8 @@ const HeroSection = () => (
             Economize ração e previna perdas com nossa IA preditiva. O AgHero foi desenhado para o operador no galpão, garantindo que nada se perca, mesmo sem internet.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] hover:scale-105 transition-transform">
+            <button onClick={onComeçar} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] hover:scale-105 transition-transform">
               Começar Grátis
-            </button>
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl glass-panel text-sm font-bold text-forest-dark hover:border-vivid-emerald/50 transition-colors">
-              Ver Demonstração
             </button>
           </div>
         </div>
@@ -522,7 +519,7 @@ const PublicLanding = ({ onAcessarSistema }) => {
   return (
     <div className="w-full">
       <Navbar onAcessarSistema={onAcessarSistema} />
-      <HeroSection />
+      <HeroSection onComeçar={onAcessarSistema} />
       <ProblemSection />
       <FeaturesSection />
       <PricingSection />
@@ -611,12 +608,6 @@ export default function AgHero() {
     // Listen for auth state changes to auto-load the user's farm
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        if (user.uid === 'dono_demo_123' || user.email === 'demo@aghero.com') {
-           setFazendaAtiva('fazenda_demo_123');
-           setPapelUsuario('owner');
-           return;
-        }
-
         // Auto-vincula o colaborador caso ele tenha sido convidado
         await vincularColaboradorSePendente(user.uid, user.email, user.displayName);
 

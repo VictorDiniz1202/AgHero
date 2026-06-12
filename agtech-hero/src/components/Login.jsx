@@ -44,20 +44,7 @@ export default function Login({ onLoginSuccess, onVoltar }) {
     }
   };
 
-  const handleDemo = async () => {
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      // Usar a mesma lógica de login, passando credenciais de demonstração (tratado no services.js)
-      const user = await loginComEmail('demo@aghero.com', 'demo123');
-      onLoginSuccess('fazenda_demo_123');
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Erro no acesso de demonstração.');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-offwhite flex flex-col justify-center items-center relative overflow-hidden font-sans p-4">
@@ -173,16 +160,7 @@ export default function Login({ onLoginSuccess, onVoltar }) {
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-forest-light/10 text-center">
-          <p className="text-xs font-medium text-forest-light mb-3">Ou experimente agora mesmo</p>
-          <button 
-            onClick={handleDemo}
-            disabled={loading}
-            className="w-full py-3 rounded-xl glass-panel text-forest-dark font-bold text-sm border border-white/80 hover:border-vivid-emerald/30 transition-all flex items-center justify-center gap-2"
-          >
-            Acesso de Demonstração (Demo)
-          </button>
-        </div>
+
 
         <div className="mt-6 text-center">
           <button 

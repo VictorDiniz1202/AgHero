@@ -34,6 +34,9 @@ import {
   limit,
   Timestamp,
   deleteDoc,
+  updateDoc,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 // ─────────────────────────────────────────────────────────────────────────

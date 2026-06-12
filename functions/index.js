@@ -288,12 +288,34 @@ exports.agboyWebhook = onRequest(async (req, res) => {
     }
 
     // 3. Roteamento Multi-Agente (AgBoy Orchestrator)
+    const isSOS = text && (text.trim().toLowerCase() === 'socorro' || text.trim().toLowerCase() === 'vet');
+    if (isSOS) {
+      const vetPhone = targetFazenda.veterinario_responsavel?.whatsapp;
+      if (vetPhone) {
+        const sosMsg = `🚨 *SOCORRO / EMERGÊNCIA SOLICITADA PELO PRODUTOR* 🚨\n\nFicha Técnica Rápida:\n${contexto}\n\nPor favor, entre em contato urgente com o produtor (${phone}).`;
+        await sendWhatsAppMessage(vetPhone, sosMsg);
+        await sendWhatsAppMessage(phone, "✅ Acabei de enviar a ficha técnica completa do seu lote para o WhatsApp do seu veterinário. Ele entrará em contato em breve.");
+      } else {
+        await sendWhatsAppMessage(phone, "❌ Nenhum veterinário está cadastrado na sua aba de Controle do AGboy. Acesse o painel para cadastrar.");
+      }
+      return res.status(200).send('SOS processado');
+    }
+
     const { AgBoyOrchestrator } = require('./src/ai/orchestrator');
     const entrada = { text, media };
     const respostaIA = await AgBoyOrchestrator(entrada, contexto, targetFazendaId);
+    let textoResposta = typeof respostaIA === 'string' ? respostaIA : respostaIA.text;
+
+    if (respostaIA && respostaIA.alertaCritico) {
+      const vetPhone = targetFazenda.veterinario_responsavel?.whatsapp;
+      if (vetPhone && vetPhone.replace(/\D/g, '') !== phone) {
+        const alertaMsg = `🚨 *ALERTA CLÍNICO CRÍTICO (AGboy IA)* 🚨\n\nIdentifiquei uma suspeita grave reportada pelo produtor (${phone}).\n\nResumo da Análise:\n${textoResposta}\n\nPor favor, entre em contato urgente.`;
+        await sendWhatsAppMessage(vetPhone, alertaMsg);
+      }
+    }
 
     // 4. Devolver Resposta
-    await sendWhatsAppMessage(phone, respostaIA);
+    await sendWhatsAppMessage(phone, textoResposta);
 
     return res.status(200).send('Sucesso');
   } catch (err) {
@@ -350,18 +372,27 @@ exports.chatComAgBoy = onCall(async (request) => {
 
     const { AgBoyOrchestrator } = require('./src/ai/orchestrator');
     const entrada = { text: mensagem || "", media: media || null };
-    const resposta = await AgBoyOrchestrator(entrada, contexto, id_fazenda);
+    const respostaIA = await AgBoyOrchestrator(entrada, contexto, id_fazenda);
+    let textoResposta = typeof respostaIA === 'string' ? respostaIA : respostaIA.text;
+
+    if (respostaIA && respostaIA.alertaCritico) {
+      const vetPhone = fazenda.veterinario_responsavel?.whatsapp;
+      if (vetPhone) {
+        const alertaMsg = `🚨 *ALERTA CLÍNICO CRÍTICO (AGboy IA)* 🚨\n\nIdentifiquei uma suspeita grave pelo chat web.\n\nFazenda: ${fazenda.nome}\n\nResumo da Análise:\n${textoResposta}\n\nPor favor, entre em contato urgente.`;
+        await sendWhatsAppMessage(vetPhone, alertaMsg);
+      }
+    }
 
     // Salva o log do chat
     await db.collection(`fazendas/${id_fazenda}/chat_agboy`).add({
       pergunta: mensagem || "[Mídia enviada]",
       media: media || null,
-      resposta: resposta,
+      resposta: textoResposta,
       uid: uid,
       timestamp: new Date()
     });
 
-    return { resposta };
+    return { resposta: textoResposta };
   } catch (error) {
     logger.error('Erro no chatComAgBoy:', error);
     throw new Error('Falha ao processar IA');

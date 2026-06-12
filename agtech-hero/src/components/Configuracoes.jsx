@@ -382,6 +382,14 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
           >
             Plano & Faturamento
           </button>
+          {ehOwner && (
+            <button
+              onClick={() => setAbaAtual('agboy')}
+              className={`text-sm font-bold uppercase tracking-wide transition-colors ${abaAtual === 'agboy' ? 'text-vivid-emerald border-b-2 border-vivid-emerald pb-1' : 'text-forest-light hover:text-forest-dark pb-1'}`}
+            >
+              Controle do AgBoy
+            </button>
+          )}
         </div>
       </div>
 
@@ -465,66 +473,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
           </div>
         </section>
 
-        {/* Limites de Alerta */}
-        <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Limites de Alerta</h2>
-            <p className="text-xs font-medium text-forest-light/80 mt-1">Define os gatilhos para os avisos no painel e no WhatsApp.</p>
-          </div>
 
-          <CampoPercentual
-            id="mortalidade_critica"
-            label="Mortalidade Diária Crítica"
-            descricao="Acima deste valor, a IA dispara alerta vermelho."
-            value={alertasConfig.mortalidade_critica}
-            placeholder="0.15"
-            onChange={(valor) => atualizarAlertaLocal('mortalidade_critica', valor)}
-            onBlur={() => handleAlertaBlur('mortalidade_critica')}
-          />
-          <CampoPercentual
-            id="desvio_agua"
-            label="Desvio de Consumo de Água"
-            descricao="Variação aceitável antes de alertar queda ou estresse térmico."
-            value={alertasConfig.desvio_agua}
-            placeholder="10"
-            onChange={(valor) => atualizarAlertaLocal('desvio_agua', valor)}
-            onBlur={() => handleAlertaBlur('desvio_agua')}
-          />
-          <CampoPercentual
-            id="desvio_racao"
-            label="Variação de Consumo de Ração"
-            descricao="Variação aceitável em relação à média móvel de 3 dias."
-            value={alertasConfig.desvio_racao}
-            placeholder="8"
-            onChange={(valor) => atualizarAlertaLocal('desvio_racao', valor)}
-            onBlur={() => handleAlertaBlur('desvio_racao')}
-          />
-          {tipoProducao === 'Postura' && (
-            <CampoPercentual
-              id="queda_postura"
-              label="Alerta de Queda de Postura"
-              descricao="Queda percentual máxima na produção diária antes de gerar alerta."
-              value={alertasConfig.queda_postura}
-              placeholder="10"
-              onChange={(valor) => atualizarAlertaLocal('queda_postura', valor)}
-              onBlur={() => handleAlertaBlur('queda_postura')}
-            />
-          )}
-        </section>
-
-        {/* Como Funciona o Alerta Climático? */}
-        <section className="glass-panel p-4 rounded-2xl shadow-sm border border-vivid-emerald/20 bg-gradient-to-br from-white/60 to-vivid-emerald/5">
-          <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide flex items-center gap-2">
-            <span>🌬️</span> Como funciona o Alerta Climático?
-          </h2>
-          <p className="text-xs font-medium text-forest-dark/80 mt-2 leading-relaxed">
-            A IA do AgBoy cruza os dados do clima local (Temperatura e Umidade Relativa) com a idade e aptidão do lote (Corte ou Postura) para calcular o <strong>ITU (Índice de Temperatura e Umidade)</strong>.
-          </p>
-          <ul className="mt-3 space-y-1 text-xs font-medium text-forest-dark/70 list-disc pl-5">
-            <li>Se o ITU sair da faixa de conforto ideal, a IA sugere manejos imediatos no painel principal.</li>
-            <li>Em casos críticos (Extremo Perigo), o Veterinário Responsável e os Contatos de WhatsApp recebem um aviso via WhatsApp com as recomendações da IA (ex: ligar nebulizadores, ajustar ventilação).</li>
-          </ul>
-        </section>
 
         {/* Gestão de Pesagens */}
         <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
@@ -578,110 +527,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
           )}
         </section>
 
-        {/* Veterinário Responsável */}
-        <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Veterinário Responsável</h2>
-            <p className="text-xs font-medium text-forest-light/80 mt-1">Contato principal para receber alertas sanitários críticos em tempo real.</p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="vet_nome" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
-                Nome do Veterinário
-              </label>
-              <input
-                id="vet_nome"
-                type="text"
-                value={veterinarioNome}
-                onChange={(e) => setVeterinarioNome(e.target.value)}
-                onBlur={handleVeterinarioBlur}
-                placeholder="Ex: Dr. Carlos"
-                className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
-              />
-            </div>
-            <div>
-              <label htmlFor="vet_whatsapp" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
-                WhatsApp (com DDI e DDD)
-              </label>
-              <input
-                id="vet_whatsapp"
-                type="tel"
-                value={veterinarioWhatsapp}
-                onChange={(e) => setVeterinarioWhatsapp(e.target.value)}
-                onBlur={handleVeterinarioBlur}
-                placeholder="+5511999998888"
-                className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Contatos WhatsApp */}
-        <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Contatos de WhatsApp Autorizados</h2>
-            <p className="text-xs font-medium text-forest-light/80 mt-1">Números que recebem alertas automáticos do n8n em caso de anomalias.</p>
-          </div>
-
-          {contatos.length === 0 && (
-            <p className="rounded-xl border-2 border-dashed border-forest/20 p-3 text-center text-xs font-medium text-forest-light">
-              Nenhum contato cadastrado.
-            </p>
-          )}
-
-          {contatos.length > 0 && (
-            <ul className="space-y-2">
-              {contatos.map((numero) => (
-                <li
-                  key={numero}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/60 bg-white/60 px-3.5 py-2.5"
-                >
-                  <span className="text-sm font-bold text-forest-dark tabular-nums">{numero}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoverContato(numero)}
-                    aria-label={`Remover ${numero}`}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agriAlert-red/10 text-agriAlert-red hover:bg-agriAlert-red/20 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-                      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                inputMode="tel"
-                value={novoContato}
-                onChange={(evento) => setNovoContato(evento.target.value)}
-                onKeyDown={(evento) => {
-                  if (evento.key === 'Enter') {
-                    evento.preventDefault();
-                    handleAdicionarContato();
-                  }
-                }}
-                placeholder="+5511999998888"
-                className="w-full min-w-0 rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
-              />
-              <button
-                type="button"
-                onClick={handleAdicionarContato}
-                className="shrink-0 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime px-4 text-sm font-bold text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,0.5)] active:scale-95 transition-transform"
-              >
-                Adicionar
-              </button>
-            </div>
-            {erroContato && (
-              <p className="text-xs font-bold text-agriAlert-red">{erroContato}</p>
-            )}
-          </div>
-        </section>
 
         {/* Plano de Assinatura */}
         <section className="space-y-4">
@@ -928,6 +774,212 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
           </section>
         )}
         </>
+        )}
+
+        {abaAtual === 'agboy' && ehOwner && (
+          <div className="space-y-6">
+            {/* Cabeçalho da Aba AgBoy */}
+            <div className="glass-panel p-6 rounded-2xl shadow-sm text-center bg-gradient-to-br from-vivid-emerald/10 to-vivid-teal/5">
+              <span className="text-4xl mb-3 block">🤖</span>
+              <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Controle do AgBoy</h2>
+              <p className="text-xs font-medium text-forest-dark/70 mt-2 max-w-md mx-auto">
+                Configure os acessos, alertas e o médico veterinário da sua inteligência artificial.
+              </p>
+            </div>
+
+            {/* Veterinário Responsável com UI Melhorada */}
+            <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Veterinário Responsável</h2>
+                  <p className="text-xs font-medium text-forest-light/80 mt-1">Contato principal para alertas sanitários críticos em tempo real.</p>
+                </div>
+                <span className="text-2xl">🩺</span>
+              </div>
+
+              {veterinarioNome || veterinarioWhatsapp ? (
+                <div className="rounded-xl border border-vivid-emerald/30 bg-vivid-emerald/5 p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-forest-dark">{veterinarioNome || 'Sem Nome'}</p>
+                      <p className="text-xs font-medium text-forest-light">{veterinarioWhatsapp}</p>
+                    </div>
+                    <span className="bg-vivid-emerald/20 text-vivid-emerald px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-vivid-emerald animate-pulse"></span>
+                      Ativo
+                    </span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setVeterinarioNome(''); setVeterinarioWhatsapp(''); persistir({ veterinario_responsavel: null }); }}
+                      className="w-full text-center rounded-lg bg-agriAlert-red/10 py-2 text-xs font-bold text-agriAlert-red hover:bg-agriAlert-red/20 transition-colors"
+                    >
+                      Remover / Alterar Veterinário
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="vet_nome" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
+                      Nome do Veterinário
+                    </label>
+                    <input
+                      id="vet_nome"
+                      type="text"
+                      value={veterinarioNome}
+                      onChange={(e) => setVeterinarioNome(e.target.value)}
+                      onBlur={handleVeterinarioBlur}
+                      placeholder="Ex: Dr. Carlos"
+                      className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="vet_whatsapp" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
+                      WhatsApp (com DDI e DDD)
+                    </label>
+                    <input
+                      id="vet_whatsapp"
+                      type="tel"
+                      value={veterinarioWhatsapp}
+                      onChange={(e) => setVeterinarioWhatsapp(e.target.value)}
+                      onBlur={handleVeterinarioBlur}
+                      placeholder="+5511999998888"
+                      className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Contatos WhatsApp */}
+            <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
+              <div>
+                <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Acesso Liberado ao AGboy (WhatsApp)</h2>
+                <p className="text-xs font-medium text-forest-light/80 mt-1">Números autorizados a interagir com a IA e receber notificações.</p>
+              </div>
+
+              {contatos.length === 0 && (
+                <p className="rounded-xl border-2 border-dashed border-forest/20 p-3 text-center text-xs font-medium text-forest-light">
+                  Nenhum contato cadastrado.
+                </p>
+              )}
+
+              {contatos.length > 0 && (
+                <ul className="space-y-2">
+                  {contatos.map((numero) => (
+                    <li
+                      key={numero}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/60 bg-white/60 px-3.5 py-2.5"
+                    >
+                      <span className="text-sm font-bold text-forest-dark tabular-nums">{numero}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverContato(numero)}
+                        aria-label={`Remover ${numero}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agriAlert-red/10 text-agriAlert-red hover:bg-agriAlert-red/20 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={novoContato}
+                    onChange={(evento) => setNovoContato(evento.target.value)}
+                    onKeyDown={(evento) => {
+                      if (evento.key === 'Enter') {
+                        evento.preventDefault();
+                        handleAdicionarContato();
+                      }
+                    }}
+                    placeholder="+5511999998888"
+                    className="w-full min-w-0 rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAdicionarContato}
+                    className="shrink-0 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime px-4 text-sm font-bold text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,0.5)] active:scale-95 transition-transform"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+                {erroContato && (
+                  <p className="text-xs font-bold text-agriAlert-red">{erroContato}</p>
+                )}
+              </div>
+            </section>
+
+            {/* Limites de Alerta */}
+            <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
+              <div>
+                <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Limites e Gatilhos da IA</h2>
+                <p className="text-xs font-medium text-forest-light/80 mt-1">Define quando o AGboy dispara alertas via WhatsApp.</p>
+              </div>
+
+              <CampoPercentual
+                id="mortalidade_critica"
+                label="Mortalidade Diária Crítica"
+                descricao="Acima deste valor, a IA dispara alerta vermelho."
+                value={alertasConfig.mortalidade_critica}
+                placeholder="0.15"
+                onChange={(valor) => atualizarAlertaLocal('mortalidade_critica', valor)}
+                onBlur={() => handleAlertaBlur('mortalidade_critica')}
+              />
+              <CampoPercentual
+                id="desvio_agua"
+                label="Desvio de Consumo de Água"
+                descricao="Variação aceitável antes de alertar queda ou estresse térmico."
+                value={alertasConfig.desvio_agua}
+                placeholder="10"
+                onChange={(valor) => atualizarAlertaLocal('desvio_agua', valor)}
+                onBlur={() => handleAlertaBlur('desvio_agua')}
+              />
+              <CampoPercentual
+                id="desvio_racao"
+                label="Variação de Consumo de Ração"
+                descricao="Variação aceitável em relação à média móvel de 3 dias."
+                value={alertasConfig.desvio_racao}
+                placeholder="8"
+                onChange={(valor) => atualizarAlertaLocal('desvio_racao', valor)}
+                onBlur={() => handleAlertaBlur('desvio_racao')}
+              />
+              {tipoProducao === 'Postura' && (
+                <CampoPercentual
+                  id="queda_postura"
+                  label="Alerta de Queda de Postura"
+                  descricao="Queda percentual máxima na produção diária antes de gerar alerta."
+                  value={alertasConfig.queda_postura}
+                  placeholder="10"
+                  onChange={(valor) => atualizarAlertaLocal('queda_postura', valor)}
+                  onBlur={() => handleAlertaBlur('queda_postura')}
+                />
+              )}
+            </section>
+
+            {/* Como Funciona o Alerta Climático? */}
+            <section className="glass-panel p-4 rounded-2xl shadow-sm border border-vivid-emerald/20 bg-gradient-to-br from-white/60 to-vivid-emerald/5">
+              <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide flex items-center gap-2">
+                <span>🌬️</span> Alerta Climático
+              </h2>
+              <p className="text-xs font-medium text-forest-dark/80 mt-2 leading-relaxed">
+                A IA cruza os dados do clima local com a idade e aptidão do lote para calcular o <strong>ITU (Índice de Temperatura e Umidade)</strong>.
+              </p>
+              <ul className="mt-3 space-y-1 text-xs font-medium text-forest-dark/70 list-disc pl-5">
+                <li>Se o ITU sair da faixa ideal, a IA sugere manejos no painel principal.</li>
+                <li>Em casos de Extremo Perigo, o Veterinário e os Contatos autorizados recebem um aviso via WhatsApp com ações sugeridas.</li>
+              </ul>
+            </section>
+          </div>
         )}
 
         {abaAtual === 'faturamento' && (

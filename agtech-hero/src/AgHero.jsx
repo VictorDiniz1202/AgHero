@@ -601,6 +601,25 @@ export default function AgHero() {
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
 
   useEffect(() => {
+    // Escuta mudança de auth para pular login se já autenticado
+    const callback = async (user) => {
+      if (user && tela === "login") {
+        const fazenda = await obterFazendaDoUsuario(user.uid);
+        if (fazenda) {
+          setFazendaAtiva(fazenda.id_fazenda || fazenda.id);
+          setTela("dashboard");
+        }
+      }
+    };
+    
+    const unsubscribe = (!auth.app && typeof auth.onAuthStateChanged === 'function')
+      ? auth.onAuthStateChanged(callback)
+      : onAuthStateChanged(auth, callback);
+      
+    return () => unsubscribe();
+  }, [tela]);
+
+  useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -611,7 +630,7 @@ export default function AgHero() {
 
   useEffect(() => {
     // Listen for auth state changes to auto-load the user's farm
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const callback = async (user) => {
       if (user) {
         // Auto-vincula o colaborador caso ele tenha sido convidado
         await vincularColaboradorSePendente(user.uid, user.email, user.displayName);
@@ -625,7 +644,12 @@ export default function AgHero() {
           setPapelUsuario(role);
         }
       }
-    });
+    };
+    
+    const unsubscribe = (!auth.app && typeof auth.onAuthStateChanged === 'function')
+      ? auth.onAuthStateChanged(callback)
+      : onAuthStateChanged(auth, callback);
+      
     return () => unsubscribe();
   }, []);
 

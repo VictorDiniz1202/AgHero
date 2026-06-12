@@ -64,7 +64,7 @@ async function processarDataClerk(dados, idFazenda) {
  */
 async function AgBoyOrchestrator(entrada, contextoFazenda, idFazenda) {
   if (!process.env.GEMINI_API_KEY) {
-    return "Ops! Estou offline no momento (Falta a API Key no servidor). Avise o suporte!";
+    return { text: "Ops! Estou offline no momento (Falta a API Key no servidor). Avise o suporte!", alertaCritico: false };
   }
 
   const textoUsuario = entrada.text || "[Mídia Enviada]";
@@ -90,14 +90,14 @@ async function AgBoyOrchestrator(entrada, contextoFazenda, idFazenda) {
       decisao = JSON.parse(supResText);
     } catch(e) {
       console.error("Erro no parse do supervisor JSON:", supResText);
-      return "Minha mente está um pouco confusa agora. Pode repetir a pergunta?";
+      return { text: "Minha mente está um pouco confusa agora. Pode repetir a pergunta?", alertaCritico: false };
     }
 
     console.log("[AgBoy Supervisor] Decisão:", decisao);
 
     // Se o array estiver vazio, o supervisor acha que é trivial (saudação)
     if (!decisao.delegar_para || !Array.isArray(decisao.delegar_para) || decisao.delegar_para.length === 0) {
-      return decisao.resposta_direta || "Olá! Em que posso ajudar?";
+      return { text: decisao.resposta_direta || "Olá! Em que posso ajudar?", alertaCritico: false };
     }
 
     const agentesAtivos = decisao.delegar_para;
@@ -148,9 +148,18 @@ ${isDataClerk ? "" : "Responda focando na sua especialidade de forma clara, prof
 
     const insights = await Promise.all(promessas);
 
+    let alertaCritico = false;
+    let textResult = "";
+
+    const insightsString = insights.join('\n\n');
+    if (insightsString.includes('[ALERTA CRÍTICO]')) {
+      alertaCritico = true;
+    }
+
     // Se tiver apenas 1 agente, devolve a resposta dele "limpa"
     if (insights.length === 1) {
-      return insights[0].replace(/\[Insight do .*\]:\n/, '').trim();
+      textResult = insights[0].replace(/\[Insight do .*\]:\n/, '').replace(/\[ALERTA CRÍTICO\]/gi, '').trim();
+      return { text: textResult, alertaCritico };
     }
 
     // 3. Consolidação Final
@@ -159,18 +168,19 @@ ${isDataClerk ? "" : "Responda focando na sua especialidade de forma clara, prof
 Um produtor enviou a seguinte mensagem: "${textoUsuario}"
 
 Você consultou seus sub-agentes especialistas em paralelo. Aqui estão os relatórios deles:
-${insights.join('\n\n')}
+${insightsString}
 
 SUA TAREFA:
 Crie uma resposta unificada, em texto super amigável, direto e profissional, fundindo esses insights. 
-Como você atua tanto na plataforma Web quanto no WhatsApp, formate sua resposta com markdown simples (negrito, listas) e use emojis pertinentes. Não diga frases como "baseado no relatório dos especialistas", apenas dê a resposta consolidada como se fosse sua mente única.`;
+Como você atua tanto na plataforma Web quanto no WhatsApp, formate sua resposta com markdown simples (negrito, listas) e use emojis pertinentes. Não diga frases como "baseado no relatório dos especialistas", apenas dê a resposta consolidada como se fosse sua mente única. IMPORTANTE: Remova a palavra "[ALERTA CRÍTICO]" do seu texto caso ela apareça.`;
     
     const consResult = await modelEspecialista.generateContent(consolidacaoPrompt);
-    return consResult.response.text();
+    textResult = consResult.response.text().replace(/\[ALERTA CRÍTICO\]/gi, '').trim();
+    return { text: textResult, alertaCritico };
 
   } catch (error) {
     console.error("Erro no Orquestrador:", error);
-    return "Enfrentei um erro temporário nos meus circuitos ao processar seu pedido. Tente novamente em breve.";
+    return { text: "Enfrentei um erro temporário nos meus circuitos ao processar seu pedido. Tente novamente em breve.", alertaCritico: false };
   }
 }
 

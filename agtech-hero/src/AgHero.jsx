@@ -9,6 +9,7 @@ import CentralBI from "./components/CentralBI";
 import CalendarioManejo from "./components/CalendarioManejo";
 import GestaoFinanceira from "./components/GestaoFinanceira";
 import CentroRelatorios from "./components/CentroRelatorios";
+import ImportadorDados from "./components/ImportadorDados";
 import Login from "./components/Login";
 import { auth } from "./firebase/config";
 import { obterFazendaDoUsuario, vincularColaboradorSePendente, verificarStatusOnboarding } from "./firebase/services";
@@ -245,7 +246,7 @@ const HeroSection = () => (
             Gestão <span className="text-transparent bg-clip-text bg-gradient-to-r from-vivid-emerald to-vivid-teal">Offline-First</span> para o Produtor Rural.
           </h1>
           <p className="text-sm sm:text-base text-forest-light font-medium leading-relaxed">
-            Economize ração e previna perdas com nossa IA preditiva. O AgHero foi desenhado para o peão no galpão, garantindo que nada se perca, mesmo sem internet.
+            Economize ração e previna perdas com nossa IA preditiva. O AgHero foi desenhado para o operador no galpão, garantindo que nada se perca, mesmo sem internet.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2">
             <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white text-sm font-bold shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] hover:scale-105 transition-transform">
@@ -305,7 +306,7 @@ const ProblemSection = () => (
         <div className="reveal group relative overflow-hidden glass-panel rounded-3xl p-6 sm:p-8 hover:-translate-y-1 hover:border-vivid-emerald/30 transition-all duration-300">
           <div className="h-40 bg-gradient-to-br from-forest-dark/5 to-transparent rounded-2xl border border-white/50 mb-6 flex items-center justify-center relative overflow-hidden">
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-vivid-emerald/10 rounded-full blur-2xl"></div>
-             <div className="bg-white/80 border border-white p-3 rounded-xl shadow-lg w-3/4 transform rotate-3 transition-transform group-hover:rotate-0">
+             <div className="bg-white/80 border border-white p-3 rounded-xl shadow-lg w-3/4">
                <div className="flex items-center justify-between mb-3 border-b border-forest-light/10 pb-2">
                  <span className="text-[10px] font-bold text-forest-dark">Mortalidade (Lote 1)</span>
                </div>
@@ -318,7 +319,7 @@ const ProblemSection = () => (
           </div>
           <h3 className="text-lg font-bold text-forest-dark mb-2">Trabalho Bruto</h3>
           <p className="text-sm text-forest-light font-medium leading-relaxed">
-            Telas com botões grandes e contrastes altos criadas para o peão usar de luvas e sob o sol forte em menos de 30 segundos.
+            Telas com botões grandes e contrastes altos criadas para o produtor rural usar de luvas e sob o sol forte em menos de 30 segundos.
           </p>
         </div>
 
@@ -347,7 +348,7 @@ const ProblemSection = () => (
 );
 
 const FeaturesSection = () => (
-  <section id="funciona" className="relative py-20 sm:py-28 bg-forest-dark text-white overflow-hidden">
+  <section id="funciona" className="relative py-20 sm:py-28 bg-[#152821] text-white overflow-hidden">
     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="reveal max-w-3xl mb-16">
         <p className="text-sm font-bold text-vivid-lime tracking-wider uppercase mb-3">Fluxo de Trabalho</p>
@@ -405,19 +406,20 @@ const PricingSection = () => (
         <p className="text-sm sm:text-lg text-forest-light font-medium">Tecnologia de ponta acessível para produtores rurais de todos os tamanhos.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-4xl mx-auto">
         {/* Starter */}
-        <div className="reveal glass-panel rounded-[2rem] p-8 border border-white/60 bg-white/40 shadow-sm relative overflow-hidden transition-transform hover:-translate-y-2">
+        <div className="reveal flex flex-col glass-panel rounded-[2rem] p-8 border border-white/60 bg-white/40 shadow-sm relative overflow-hidden transition-transform hover:-translate-y-2 h-full">
           <div className="mb-6">
-            <span className="text-sm font-bold text-forest-dark uppercase tracking-wider">Starter</span>
+            <span className="text-sm font-bold text-forest-dark uppercase tracking-wider">Standard</span>
             <div className="mt-4 flex items-baseline text-forest-dark">
-              <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight">Grátis</span>
+              <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight">R$ 49,90</span>
+              <span className="text-sm font-semibold text-forest-light ml-1">/mês</span>
             </div>
             <p className="mt-2 text-sm font-medium text-forest-light">Para iniciantes na gestão digital.</p>
           </div>
           <div className="h-px w-full bg-gradient-to-r from-transparent via-forest-light/20 to-transparent my-6"></div>
-          <ul className="space-y-4 mb-8">
-            {['1 Lote Ativo', 'Manejo Diário Manual', 'Dashboards Básicos', 'Sync Offline'].map(feature => (
+          <ul className="space-y-4 mb-8 flex-1">
+            {['Até 8 Lotes Ativos', '5 Alertas Preditivos/mês', 'Dashboards Básicos', 'Sync Offline'].map(feature => (
               <li key={feature} className="flex items-center gap-3">
                 <span className="w-5 h-5 rounded-full bg-vivid-emerald/10 flex items-center justify-center shrink-0">
                   <svg className="w-3 h-3 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
@@ -426,29 +428,29 @@ const PricingSection = () => (
               </li>
             ))}
           </ul>
-          <button className="w-full py-3.5 rounded-xl bg-white text-forest-dark font-bold text-sm shadow-sm border border-white/80 hover:bg-offwhite hover:border-vivid-emerald/30 transition-all">Começar Grátis</button>
+          <button className="w-full py-3.5 rounded-xl bg-white text-forest-dark font-bold text-sm shadow-sm border border-white/80 hover:bg-offwhite hover:border-vivid-emerald/30 transition-all mt-auto">Começar Grátis</button>
         </div>
 
         {/* Inteligente */}
-        <div className="reveal relative rounded-[2rem] p-[2px] bg-gradient-to-br from-vivid-emerald to-vivid-lime shadow-[0_20px_60px_-15px_rgba(16,185,129,0.4)] transform md:-translate-y-4 transition-transform hover:-translate-y-6 z-10">
-          <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-1/2 px-4 py-1.5 bg-gradient-to-r from-forest-dark to-forest rounded-full border border-vivid-emerald/50 shadow-md">
+        <div className="reveal relative rounded-[2rem] p-[2px] bg-gradient-to-br from-vivid-emerald to-vivid-lime shadow-[0_20px_60px_-15px_rgba(16,185,129,0.4)] transition-transform hover:-translate-y-2 z-10 flex flex-col h-full">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-forest-dark rounded-full border border-vivid-emerald/50 shadow-md">
             <span className="text-[10px] font-bold text-vivid-emerald uppercase tracking-widest whitespace-nowrap flex items-center gap-1">
               <span className="text-sm leading-none">✨</span> Mais Escolhido
             </span>
           </div>
-          <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] p-8 h-full relative overflow-hidden">
+          <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] p-8 flex flex-col flex-1 relative overflow-hidden">
             <div className="absolute -right-12 -top-12 w-40 h-40 bg-vivid-emerald/20 rounded-full blur-3xl pointer-events-none" />
             <div className="mb-6 relative z-10">
-              <span className="text-sm font-bold text-vivid-emerald uppercase tracking-wider">Inteligente</span>
+              <span className="text-sm font-bold text-vivid-emerald uppercase tracking-wider">Pro</span>
               <div className="mt-4 flex items-baseline">
-                <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-forest-dark to-forest">R$ 97</span>
+                <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-forest-dark to-forest">R$ 89,90</span>
                 <span className="text-sm font-semibold text-forest-light ml-1">/mês</span>
               </div>
               <p className="mt-2 text-sm font-medium text-forest-light">Inteligência Artificial no seu bolso.</p>
             </div>
             <div className="h-px w-full bg-gradient-to-r from-transparent via-forest-light/20 to-transparent my-6"></div>
-            <ul className="space-y-4 mb-8 relative z-10">
-              {['Até 5 Lotes Ativos', 'Alertas Preditivos IA', 'Integração WhatsApp', 'Gráficos Avançados'].map(feature => (
+            <ul className="space-y-4 mb-8 relative z-10 flex-1">
+              {['Lotes Ilimitados', 'Dashboards PowerBI via WhatsApp', 'Otimização de Produção IA', 'Alertas Preditivos Ilimitados'].map(feature => (
                 <li key={feature} className="flex items-center gap-3">
                   <span className="w-5 h-5 rounded-full bg-vivid-emerald/20 flex items-center justify-center shrink-0 shadow-sm border border-vivid-emerald/30">
                     <svg className="w-3 h-3 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
@@ -457,31 +459,8 @@ const PricingSection = () => (
                 </li>
               ))}
             </ul>
-            <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white font-bold text-sm shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_25px_-6px_rgba(132,204,22,0.6)] transition-all relative z-10">Assinar Agora</button>
+            <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white font-bold text-sm shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_25px_-6px_rgba(132,204,22,0.6)] transition-all relative z-10 mt-auto">Assinar Agora</button>
           </div>
-        </div>
-
-        {/* Corporativo */}
-        <div className="reveal glass-panel rounded-[2rem] p-8 border border-white/60 bg-white/40 shadow-sm relative overflow-hidden transition-transform hover:-translate-y-2">
-          <div className="mb-6">
-            <span className="text-sm font-bold text-forest-dark uppercase tracking-wider">Corporativo</span>
-            <div className="mt-4 flex items-baseline text-forest-dark">
-              <span className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight">Consulta</span>
-            </div>
-            <p className="mt-2 text-sm font-medium text-forest-light">Gestão de múltiplas fazendas.</p>
-          </div>
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-forest-light/20 to-transparent my-6"></div>
-          <ul className="space-y-4 mb-8">
-            {['Lotes Ilimitados', 'Múltiplas Fazendas', 'Integração IoT', 'Gerente de Sucesso'].map(feature => (
-              <li key={feature} className="flex items-center gap-3">
-                <span className="w-5 h-5 rounded-full bg-vivid-emerald/10 flex items-center justify-center shrink-0">
-                  <svg className="w-3 h-3 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
-                </span>
-                <span className="text-sm font-semibold text-forest-dark/80">{feature}</span>
-              </li>
-            ))}
-          </ul>
-          <button className="w-full py-3.5 rounded-xl bg-white text-forest-dark font-bold text-sm shadow-sm border border-white/80 hover:bg-offwhite hover:border-vivid-emerald/30 transition-all">Falar com Consultor</button>
         </div>
       </div>
     </div>
@@ -497,11 +476,8 @@ const AboutSection = () => (
           Desenvolvido por quem entende de granja para quem vive da granja.
         </h2>
         <p className="text-sm sm:text-base text-forest-light font-medium leading-relaxed mb-8">
-          Nós unimos a robustez necessária para o trabalho bruto em campo com o poder preditivo da inteligência artificial. Queremos dar ao produtor rural e ao peão ferramentas que efetivamente geram retorno financeiro, cortando perdas e profissionalizando o controle, sem exigir internet rápida.
+          Nós unimos a robustez necessária para o trabalho bruto em campo com o poder preditivo da inteligência artificial. Queremos dar ao produtor rural e ao operador ferramentas que efetivamente geram retorno financeiro, cortando perdas e profissionalizando o controle, sem exigir internet rápida.
         </p>
-        <button className="px-8 py-3 rounded-xl bg-forest-dark text-white font-bold text-sm hover:bg-forest-light transition-colors">
-          Fale com o Time
-        </button>
       </div>
     </div>
   </section>
@@ -583,7 +559,7 @@ const PWABadge = () => {
 };
 
 // Helper para injetar o wrapper da animação do sistema
-const SystemWrapper = ({ children, deferredPrompt, setDeferredPrompt, onInstallClick }) => (
+const SystemWrapper = ({ children, deferredPrompt, setDeferredPrompt, onInstallClick, mostrarOnboarding, setMostrarOnboarding }) => (
   <div className="fixed inset-0 w-full h-full overflow-hidden bg-offwhite font-sans text-forest-dark system-enter flex flex-col">
     {/* Fundo orgânico global para o sistema */}
     <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -617,8 +593,8 @@ const SystemWrapper = ({ children, deferredPrompt, setDeferredPrompt, onInstallC
 export default function AgHero() {
   const [tela, setTela] = useState("landing");
   const [dataRetroativa, setDataRetroativa] = useState(null);
-  const [fazendaAtiva, setFazendaAtiva] = useState("fazenda_demo_123");
-  const [papelUsuario, setPapelUsuario] = useState("dono");
+  const [fazendaAtiva, setFazendaAtiva] = useState(null);
+  const [papelUsuario, setPapelUsuario] = useState(null);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
 
@@ -632,11 +608,6 @@ export default function AgHero() {
   }, []);
 
   useEffect(() => {
-    // Tenta logar automaticamente com a conta de testes
-    import("firebase/auth").then(({ signInWithEmailAndPassword }) => {
-      signInWithEmailAndPassword(auth, 'demo@aghero.com', 'demo123').catch(console.error);
-    });
-
     // Listen for auth state changes to auto-load the user's farm
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -666,9 +637,11 @@ export default function AgHero() {
     const checarOnboarding = async () => {
       const user = auth.currentUser;
       if (user && fazendaAtiva && tela !== "landing" && tela !== "login") {
+        if (sessionStorage.getItem('onboardingExibido')) return;
         const concluiu = await verificarStatusOnboarding(user.uid);
         if (!concluiu) {
           setMostrarOnboarding(true);
+          sessionStorage.setItem('onboardingExibido', 'true');
         }
       }
     };
@@ -741,6 +714,7 @@ export default function AgHero() {
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -798,6 +772,7 @@ export default function AgHero() {
           }}
           onAbrirFinanceiro={() => setTela("financeiro")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -823,6 +798,7 @@ export default function AgHero() {
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -847,6 +823,7 @@ export default function AgHero() {
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -871,6 +848,7 @@ export default function AgHero() {
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirFinanceiro={() => setTela("financeiro")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -894,6 +872,7 @@ export default function AgHero() {
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
           onAbrirRelatorios={() => setTela("relatorios")}
+          onAbrirImportador={() => setTela("importador")}
         />
       </SystemWrapper>
     );
@@ -916,6 +895,19 @@ export default function AgHero() {
           onAbrirNutricao={() => setTela("nutricao")}
           onAbrirAgua={() => setTela("agua")}
           onAbrirFinanceiro={() => setTela("financeiro")}
+          onAbrirImportador={() => setTela("importador")}
+        />
+      </SystemWrapper>
+    );
+  }
+
+  if (tela === "importador") {
+    return (
+      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
+        <ImportadorDados
+          id_fazenda={fazendaAtiva}
+          papelUsuario={papelUsuario}
+          onVoltar={() => setTela("dashboard")}
         />
       </SystemWrapper>
     );

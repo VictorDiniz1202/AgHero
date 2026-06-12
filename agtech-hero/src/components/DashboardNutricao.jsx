@@ -19,7 +19,7 @@ function formatarDataStr(date) {
   return `${ano}-${mes}-${dia}`;
 }
 
-export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios }) {
+export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -182,6 +182,7 @@ export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, 
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
 

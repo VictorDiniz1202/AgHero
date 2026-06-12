@@ -91,7 +91,7 @@ import {
  * @returns {Promise<Fazenda>}
  */
 export async function criarFazenda(nome, tipoProducao, contatos, donoUid) {
-  const fazendaRef = doc(collection(db, 'fazendas'));
+  const fazendaRef = doc(db, 'fazendas', 'fazenda_' + donoUid);
 
   const fazendaData = {
     nome,
@@ -581,9 +581,9 @@ export async function criarConta(email, senha, nomeFazenda = "Minha Granja", tip
   const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
   const user = userCredential.user;
   
-  // Initialize onboarding flag
+  // Initialize onboarding flag sem await (evita race condition no rules do firestore)
   const userDocRef = doc(db, 'usuarios', user.uid);
-  await setDoc(userDocRef, { onboarding_concluido: false }, { merge: true });
+  setDoc(userDocRef, { onboarding_concluido: false }, { merge: true }).catch(e => console.warn('Aviso ignorado ao criar conta (race condition no rules):', e));
 
   // Create a default farm for the new user
   await criarFazenda(nomeFazenda, tipoProducao, [], user.uid);
@@ -602,8 +602,21 @@ export async function deslogar() {
  * e filtraremos. Para otimização futura, o 'ownerId' deve ser adicionado ao doc de criação.
  */
 export async function obterFazendaDoUsuario(uid) {
+  // 1. Busca direta garantida (Contas novas e Admin)
   try {
-    // 1. Tenta buscar na nova coleção de colaboradores
+    const adminFarmRef = doc(db, 'fazendas', `fazenda_${uid}`);
+    const adminFarmSnap = await getDoc(adminFarmRef);
+    if (adminFarmSnap.exists()) {
+      const data = adminFarmSnap.data();
+      const role = data.membros?.[uid] === 'dono' ? 'owner' : 'operator';
+      return { id: adminFarmSnap.id, id_fazenda: adminFarmSnap.id, ...data, papelColaborador: role };
+    }
+  } catch (error) {
+    console.warn('[Firestore] Fallback busca direta falhou:', error.code);
+  }
+
+  // 2. Tenta buscar na nova coleção de colaboradores
+  try {
     const colabRef = doc(db, 'collaborators', uid);
     const colabSnap = await getDoc(colabRef);
     if (colabSnap.exists()) {
@@ -614,26 +627,24 @@ export async function obterFazendaDoUsuario(uid) {
         return { id: farmSnap.id, id_fazenda: farmSnap.id, ...farmSnap.data(), papelColaborador: colabData.role };
       }
     }
+  } catch (error) {
+    console.warn('[Firestore] Fallback collaborators falhou:', error.code);
+  }
 
-    // 2. Fallback para compatibilidade com o mapa de membros (MVP antigo / Demo)
+  // 3. Fallback para compatibilidade com o mapa de membros (MVP antigo / Demo)
+  try {
     const q = query(collection(db, 'fazendas'));
     const snapshot = await getDocs(q);
-    
-    // Find the first farm where the user is in the 'membros' map
-    const fazenda = snapshot.docs.find(docSnap => {
-      const data = docSnap.data();
-      return data.membros && data.membros[uid];
-    });
-
+    const fazenda = snapshot.docs.find(docSnap => docSnap.data().membros?.[uid]);
     if (fazenda) {
       const role = fazenda.data().membros[uid] === 'dono' ? 'owner' : 'operator';
       return { id: fazenda.id, id_fazenda: fazenda.id, ...fazenda.data(), papelColaborador: role };
     }
-    return null;
   } catch (error) {
-    console.error('[Firestore] Falha ao obter fazenda do usuário:', error);
-    return null;
+    console.warn('[Firestore] Fallback query geral falhou:', error.code);
   }
+
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1100,4 +1111,114 @@ export async function concluirOnboarding(uid) {
   }
 }
 
+// ─── IMPORTADOR DE DADOS E DATA LAKE (SPRINT 30) ─────────────────────────────
 
+/**
+ * Importa registros e transações financeiras em massa para um lote.
+ * 
+ * @param {string} id_fazenda
+ * @param {string} id_lote
+ * @param {Array} registros - Lista de objetos com dados de registro diário.
+ * @param {Array} transacoes - Lista de objetos com dados financeiros.
+ */
+export async function importarDadosLote(id_fazenda, id_lote, registros = [], transacoes = []) {
+  try {
+    // Registros diários
+    for (const r of registros) {
+      if (!r.data_str) continue;
+      const ref = doc(collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'registros_diarios'));
+      setDoc(ref, {
+        id_lote: id_lote,
+        ...r,
+        data_registro: Timestamp.now()
+      }).catch(err => console.error('Erro na gravação otimista de registro:', err));
+    }
+
+    // Transações financeiras
+    for (const t of transacoes) {
+      if (!t.valor) continue;
+      const ref = doc(collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'transacoes'));
+      setDoc(ref, {
+        ...t,
+        timestamp_registro: Timestamp.now()
+      }).catch(err => console.error('Erro na gravação otimista de transação:', err));
+    }
+  } catch (error) {
+    console.error(`[Firestore] Erro na importação em lote na fazenda ${id_fazenda}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Atualiza o opt-in de compartilhamento de dados anônimos (Data Lake).
+ * @param {string} id_fazenda
+ * @param {boolean} optIn
+ */
+export async function atualizarCompartilhamentoDados(id_fazenda, optIn) {
+  try {
+    const fazendaRef = doc(db, 'fazendas', id_fazenda);
+    await setDoc(fazendaRef, { compartilhar_dados_ia: optIn }, { merge: true });
+  } catch (error) {
+    console.error(`[Firestore] Erro ao atualizar opt-in de IA na fazenda ${id_fazenda}:`, error);
+  }
+}
+
+/**
+ * Exporta sumário anônimo de lote fechado para o Data Lake de Benchmarking.
+ * Só exporta se o opt-in estiver true na fazenda.
+ * @param {string} id_fazenda
+ * @param {Object} sumarioLote - Objeto com CA, Mortalidade, CEP parcial, etc.
+ */
+export async function exportarLoteParaDataLake(id_fazenda, sumarioLote) {
+  try {
+    const fazendaRef = doc(db, 'fazendas', id_fazenda);
+    const docSnap = await getDoc(fazendaRef);
+    if (!docSnap.exists() || docSnap.data().compartilhar_dados_ia !== true) {
+      return; // Opt-in não ativado, não compartilha dados
+    }
+
+    const lakeRef = collection(db, 'benchmarks_anonimos');
+    await setDoc(doc(lakeRef), {
+      ...sumarioLote,
+      timestamp_exportacao: Timestamp.now()
+    });
+  } catch (error) {
+    console.error(`[Firestore] Erro ao exportar para o Data Lake:`, error);
+  }
+}
+
+/**
+ * Recupera o histórico do AgBoy para a fazenda.
+ * @param {string} id_fazenda
+ * @returns {Promise<Array>}
+ */
+export async function recuperarHistoricoChat(id_fazenda) {
+  try {
+    const chatRef = collection(db, `fazendas/${id_fazenda}/chat_agboy`);
+    const q = query(chatRef, orderBy('timestamp', 'asc'), limit(50));
+    const querySnapshot = await getDocs(q);
+    const mensagens = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      // O banco salva pergunta e resposta no mesmo doc, então vamos separar para a UI de chat
+      mensagens.push({
+        id: doc.id + '_q',
+        role: 'user',
+        texto: data.pergunta,
+        timestamp: data.timestamp?.toDate().toISOString() || new Date().toISOString()
+      });
+      mensagens.push({
+        id: doc.id + '_a',
+        role: 'assistant',
+        texto: data.resposta,
+        timestamp: data.timestamp?.toDate().toISOString() || new Date().toISOString()
+      });
+    });
+    
+    return mensagens;
+  } catch (error) {
+    console.error(`[Firestore] Erro ao recuperar histórico do AgBoy:`, error);
+    return [];
+  }
+}

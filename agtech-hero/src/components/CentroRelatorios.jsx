@@ -4,7 +4,7 @@ import { gerarCSV } from "../utils/exportadorDados";
 import { auth } from "../firebase/config";
 import SidebarMenu from "./SidebarMenu";
 
-export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, onAbrirDashboard, onAbrirFormulario, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro }) {
+export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, onAbrirDashboard, onAbrirFormulario, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirImportador }) {
   const [lotes, setLotes] = useState([]);
   const [loteSelecionado, setLoteSelecionado] = useState("");
   const [tipoRelatorio, setTipoRelatorio] = useState("Completo");
@@ -96,6 +96,7 @@ export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, o
         onAbrirBI={onAbrirBI}
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
       

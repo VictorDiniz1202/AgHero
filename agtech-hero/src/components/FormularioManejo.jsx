@@ -239,7 +239,7 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
       setFeedback({ tipo: 'erro', mensagem: 'Não foi possível salvar o registro. Tente novamente.' });
     });
 
-    // Roda em segundo plano: nunca bloqueia o salvamento nem a UI do peão.
+    // Roda em segundo plano: nunca bloqueia o salvamento nem a UI do operador.
     processarAlertas(dados);
 
     setValores(VALORES_INICIAIS);

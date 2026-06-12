@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { obterAlertasEnviados, obterFazenda } from '../firebase/services';
+import { obterAlertasEnviados, obterFazenda, recuperarHistoricoChat } from '../firebase/services';
 import { db } from '../firebase/config';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { functions } from "../firebase/config";
+import { httpsCallable } from "firebase/functions";
+import SidebarMenu from "./SidebarMenu";
 import ModalUpsell from './ModalUpsell';
-import SidebarMenu from './SidebarMenu';
 
 /**
  * Normaliza um SVG vindo da IA (n8n) para escalar fluidamente:
@@ -26,7 +28,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
     {
       id: 'msg-welcome',
       role: 'assistant',
-      texto: 'Olá! Sou sua Inteligência Artificial integrada ao AgHero. Posso cruzar os dados de sua granja e trazer insights e alertas. Como posso ajudar hoje?',
+      texto: 'Olá! Sou o AgBoy, seu consultor avícola digital. Posso cruzar os dados de sua granja e trazer insights e alertas. Como posso ajudar hoje?',
       timestamp: new Date().toISOString(),
     }
   ]);
@@ -35,6 +37,102 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   const [limites, setLimites] = useState({ enviosHoje: 0, plano: 'Essencial', max: 3 });
   const chatScrollRef = useRef(null);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isRecording, setIsRecording] = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const base64data = reader.result.split(',')[1];
+          setAttachment({
+            type: 'audio',
+            base64: base64data,
+            mimeType: 'audio/webm',
+            url: URL.createObjectURL(blob)
+          });
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Erro ao acessar microfone", err);
+      alert("Não foi possível acessar o microfone. Verifique as permissões.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
+        setAttachment({
+          type: 'image',
+          base64: base64data,
+          mimeType: file.type,
+          url: URL.createObjectURL(file)
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (id_fazenda) {
+      recuperarHistoricoChat(id_fazenda).then(hist => {
+        if (hist.length > 0) {
+          setMensagens(prev => {
+            // Mantém a saudação inicial e junta o histórico
+            return [prev[0], ...hist];
+          });
+        }
+      });
+    }
+  }, [id_fazenda]);
 
   useEffect(() => {
     // Rola APENAS o container interno do chat — nunca a janela.
@@ -81,7 +179,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
 
   async function enviarMensagem(e) {
     e?.preventDefault();
-    if (!input.trim() || carregando) return;
+    if ((!input.trim() && !attachment) || carregando) return;
     if (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max) {
       setMensagens(prev => [...prev, {
         id: Date.now().toString(),
@@ -91,44 +189,40 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
       }]);
       return;
     }
+    
     const textoUsuario = input.trim();
+    const currentAttachment = attachment;
+    
     setInput('');
-    setMensagens(prev => [...prev, { id: Date.now().toString(), role: 'user', texto: textoUsuario, timestamp: new Date().toISOString() }]);
+    setAttachment(null);
+    
+    setMensagens(prev => [...prev, { 
+      id: Date.now().toString(), 
+      role: 'user', 
+      texto: textoUsuario,
+      attachment: currentAttachment ? { type: currentAttachment.type, url: currentAttachment.url } : null,
+      timestamp: new Date().toISOString() 
+    }]);
+    
     setCarregando(true);
     try {
       const aprovado = await atualizarEnvioLimite();
       if (!aprovado) throw new Error('Limite excedido.');
       
+      const chatComAgBoy = httpsCallable(functions, 'chatComAgBoy');
       const payload = {
-        numeroid: id_fazenda,
-        conversa: textoUsuario,
-        nomeuser: "Produtor",
-        empresa: "AgHero",
-        tipo: "texto",
-        message_id: Date.now().toString()
+        mensagem: textoUsuario,
+        id_fazenda: id_fazenda
       };
-
-      const res = await fetch("https://n8n-n8n.tq2epq.easypanel.host/webhook-test/agtech-registro-diario", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
       
-      let respostaIA = "A IA processou a solicitação, mas não retornou uma resposta em texto legível.";
-      
-      if (res.ok) {
-        const textResponse = await res.text();
-        try {
-          const jsonResponse = JSON.parse(textResponse);
-          // Tenta extrair a resposta se for um JSON estruturado
-          respostaIA = jsonResponse.resposta || jsonResponse.output || jsonResponse.message || textResponse;
-        } catch(e) {
-          // Se não for JSON, assume que a resposta é o próprio texto/HTML (como um SVG)
-          respostaIA = textResponse;
-        }
-      } else {
-        throw new Error("Erro na comunicação com o servidor da IA.");
+      if (currentAttachment) {
+        payload.mediaBase64 = currentAttachment.base64;
+        payload.mediaType = currentAttachment.mimeType;
       }
+      
+      const res = await chatComAgBoy(payload);
+      
+      const respostaIA = res.data.resposta;
       
       setMensagens(prev => [...prev, { id: Date.now().toString(), role: 'assistant', texto: respostaIA, timestamp: new Date().toISOString() }]);
     } catch (error) {
@@ -163,6 +257,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
 
@@ -196,8 +291,9 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               onAbrirUpsell={() => setModalUpsellAberto(true)}
             />
             {mensagens.map(msg => {
-              const ehSvg = msg.texto.trim().startsWith('<svg');
-              const ehHtml = ehSvg || msg.texto.includes('<div');
+              const textoSafe = msg.texto || '';
+              const ehSvg = textoSafe.trim().startsWith('<svg');
+              const ehHtml = ehSvg || textoSafe.includes('<div');
               return (
               <div key={msg.id} className={`reveal-left flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`${ehSvg ? 'w-full' : 'max-w-[85%]'} rounded-2xl p-4 shadow-sm text-sm font-medium leading-relaxed overflow-x-auto ${
@@ -207,13 +303,24 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
                       ? 'bg-agriAlert-red/10 text-agriAlert-red border border-agriAlert-red/20 text-center w-full rounded-xl text-xs'
                       : 'bg-white/90 shadow-md border border-white/60 text-forest-dark rounded-tl-sm'
                 }`}>
+                  {msg.attachment && (
+                    <div className="mb-2">
+                      {msg.attachment.type === 'image' ? (
+                        <img src={msg.attachment.url} alt="Anexo" className="max-w-full rounded-lg shadow-sm border border-white/20" />
+                      ) : msg.attachment.type === 'audio' ? (
+                        <audio controls src={msg.attachment.url} className="w-full max-w-[240px] h-10" />
+                      ) : null}
+                    </div>
+                  )}
                   {/* Se a resposta contiver SVG, renderiza como gráfico responsivo; se for HTML, injeta direto; senão, texto puro */}
-                  {ehSvg ? (
-                    <div className="svg-chart-container" dangerouslySetInnerHTML={{ __html: prepararSvgResponsivo(msg.texto) }} />
-                  ) : ehHtml ? (
-                    <div dangerouslySetInnerHTML={{ __html: msg.texto }} />
-                  ) : (
-                    msg.texto
+                  {textoSafe && (
+                    ehSvg ? (
+                      <div className="svg-chart-container" dangerouslySetInnerHTML={{ __html: prepararSvgResponsivo(textoSafe) }} />
+                    ) : ehHtml ? (
+                      <div dangerouslySetInnerHTML={{ __html: textoSafe }} />
+                    ) : (
+                      textoSafe
+                    )
                   )}
                 </div>
               </div>
@@ -232,7 +339,12 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
         </main>
 
         <div className="w-full px-4 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] lg:p-6 bg-gradient-to-t from-offwhite via-white/95 to-white/90 border-t border-white/40 flex flex-col items-center gap-3 shrink-0 relative z-20">
-          {limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max && (
+          {isOffline && (
+            <div className="w-full max-w-3xl rounded-2xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 px-4 py-3 text-xs font-bold text-agriAlert-orange text-center">
+              O AgBoy está offline no momento. Conecte-se à internet para enviar perguntas e cruzar dados de produção.
+            </div>
+          )}
+          {!isOffline && limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max && (
             <button
               type="button"
               onClick={() => setModalUpsellAberto(true)}
@@ -241,33 +353,79 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
               Você atingiu o limite de {limites.max} consultas diárias do plano Essencial. Toque para conhecer o plano Inteligente e ter IA ilimitada! 🚀
             </button>
           )}
-          <form onSubmit={enviarMensagem} className="w-full max-w-3xl flex items-center gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onFocus={() => {
-                // Após o teclado virtual abrir, rola o container do chat (não a
-                // janela) para manter a última mensagem visível acima do input.
-                setTimeout(() => {
-                  const container = chatScrollRef.current;
-                  if (container) {
-                    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-                  }
-                }, 300);
-              }}
-              disabled={carregando || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
-              placeholder="Pergunte sobre seus lotes..."
-              className="flex-1 h-14 rounded-2xl border border-white bg-white/80 px-6 text-base sm:text-sm font-medium text-forest-dark shadow-lg backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || carregando || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="h-6 w-6 rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z" /></svg>
-            </button>
-          </form>
+          <div className="w-full max-w-3xl flex flex-col gap-2">
+            {attachment && (
+              <div className="flex items-center justify-between bg-white/80 p-3 rounded-2xl shadow-sm border border-white/60 backdrop-blur-md transition-all">
+                <div className="flex items-center gap-3">
+                  {attachment.type === 'image' ? (
+                    <img src={attachment.url} alt="Preview" className="h-12 w-12 object-cover rounded-lg shadow-sm border border-white" />
+                  ) : (
+                    <div className="h-12 w-12 rounded-lg bg-vivid-emerald/10 flex items-center justify-center text-vivid-emerald border border-vivid-emerald/20">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-forest-dark">
+                    {attachment.type === 'image' ? 'Imagem anexada' : 'Áudio anexado'}
+                  </span>
+                </div>
+                <button type="button" onClick={() => setAttachment(null)} className="p-2 text-agriAlert-red hover:bg-agriAlert-red/10 rounded-full transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            )}
+            <form onSubmit={enviarMensagem} className="w-full flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={carregando || isOffline || isRecording}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-forest-dark shadow-lg backdrop-blur-md hover:bg-white transition-colors border border-white focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50"
+              >
+                <svg className="w-6 h-6 text-forest-light hover:text-vivid-emerald transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+
+              <div className="relative flex-1 flex items-center">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onFocus={() => {
+                    // Após o teclado virtual abrir, rola o container do chat (não a
+                    // janela) para manter a última mensagem visível acima do input.
+                    setTimeout(() => {
+                      const container = chatScrollRef.current;
+                      if (container) {
+                        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                      }
+                    }, 300);
+                  }}
+                  disabled={carregando || isOffline || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max) || isRecording}
+                  placeholder={isRecording ? "Gravando áudio..." : "Pergunte sobre seus lotes..."}
+                  className={`w-full h-14 rounded-2xl border border-white bg-white/80 pl-5 pr-14 text-base sm:text-sm font-medium text-forest-dark shadow-lg backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 disabled:opacity-50 transition-colors ${isRecording ? 'animate-pulse text-vivid-emerald placeholder-vivid-emerald border-vivid-emerald/50 bg-vivid-emerald/5' : ''}`}
+                />
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  disabled={carregando || isOffline || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
+                  className={`absolute right-2 flex h-10 w-10 items-center justify-center rounded-xl transition-all disabled:opacity-50 ${isRecording ? 'bg-vivid-emerald/20 text-vivid-emerald shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-transparent text-forest-light hover:text-vivid-emerald hover:bg-vivid-emerald/10'}`}
+                >
+                  {isRecording ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                  )}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={(!input.trim() && !attachment) || carregando || isOffline || (limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max)}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="h-6 w-6 rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 19-9-9 19-2-8-8-2z" /></svg>
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 

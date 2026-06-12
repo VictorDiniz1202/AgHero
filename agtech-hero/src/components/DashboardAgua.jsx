@@ -5,7 +5,7 @@ import { analisarRelacaoAguaRacao, calcularAutonomiaReserva, calcularConsumoMedi
 
 const CAPACIDADE_AGUA_PADRAO_L = 20000;
 
-export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios }) {
+export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -119,6 +119,7 @@ export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAb
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
 

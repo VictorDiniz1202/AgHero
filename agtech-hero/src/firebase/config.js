@@ -23,6 +23,7 @@ import {
   persistentMultipleTabManager,
   getFirestore,
 } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1. Configuração do projeto Firebase
@@ -125,6 +126,14 @@ function createFirestoreInstance() {
 }
 
 const db = createFirestoreInstance();
+
+let functionsInstance;
+try {
+  functionsInstance = getFunctions(app, 'us-central1'); // Ajuste a região se necessário
+} catch (error) {
+  console.warn('[Firebase Functions] Erro ao inicializar Functions. Usando mock.', error);
+}
+export const functions = functionsInstance;
 
 // ─────────────────────────────────────────────────────────────────────────
 // 5. Exports

@@ -7,7 +7,7 @@
  * (IndexedDB) de forma síncrona via `setDoc(..., { merge: true })` e não é
  * "await-ada". A UI é atualizada de forma otimista imediatamente; o status
  * "salvando/sincronizado" é apenas um feedback visual baseado em
- * `onSnapshotsInSync`, sem travar o fluxo do peão sem internet.
+ * `onSnapshotsInSync`, sem travar o fluxo do operador sem internet.
  */
 
 import { useEffect, useState, useMemo } from 'react';
@@ -58,6 +58,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
   const [alertasConfig, setAlertasConfig] = useState(ALERTAS_PADRAO);
   const [contatos, setContatos] = useState([]);
   const [plano, setPlano] = useState('Essencial');
+  const [compartilharDadosIA, setCompartilharDadosIA] = useState(false);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [novoContato, setNovoContato] = useState('');
@@ -71,6 +72,10 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
   const [abaAtual, setAbaAtual] = useState('geral');
   const [faturamentoStatus, setFaturamentoStatus] = useState(null);
   const [carregandoFaturamento, setCarregandoFaturamento] = useState(false);
+
+  // Veterinário Responsável
+  const [veterinarioNome, setVeterinarioNome] = useState('');
+  const [veterinarioWhatsapp, setVeterinarioWhatsapp] = useState('');
 
   // Gestão de Equipe (apenas owner)
   const [colaboradores, setColaboradores] = useState([]);
@@ -97,12 +102,15 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
         setAlertasConfig({ ...ALERTAS_PADRAO, ...(fazenda.alertas_config ?? {}) });
         setContatos(fazenda.contatos_autorizados ?? []);
         setPlano(fazenda.plano ?? 'Essencial');
+        setCompartilharDadosIA(fazenda.compartilhar_dados_ia ?? false);
         setLatitude(fazenda.latitude ?? '');
         setLongitude(fazenda.longitude ?? '');
         setFreqPesagem(fazenda.config_pesagem?.frequencia ?? 'semanal');
         setDiasPersonalizadosPesagem(
           (fazenda.config_pesagem?.dias_personalizados ?? [7, 14, 21, 28, 35, 42, 49]).join(',')
         );
+        setVeterinarioNome(fazenda.veterinario_responsavel?.nome ?? '');
+        setVeterinarioWhatsapp(fazenda.veterinario_responsavel?.whatsapp ?? '');
       }
 
       setLotesAtivos(lotes ?? []);
@@ -208,6 +216,12 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
     persistir({ longitude: lonAjustado === '' ? null : lonAjustado });
   }
 
+  function handleToggleCompartilharIA() {
+    const novoValor = !compartilharDadosIA;
+    setCompartilharDadosIA(novoValor);
+    persistir({ compartilhar_dados_ia: novoValor });
+  }
+
   function handleAlertaBlur(campo) {
     const valor = Number(alertasConfig[campo]);
     const valorAjustado = Number.isFinite(valor) ? Math.max(0, valor) : 0;
@@ -300,6 +314,15 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
 
   function handleDiasPersonalizadosBlur() {
     persistir({ config_pesagem: montarConfigPesagem(freqPesagem, diasPersonalizadosPesagem) });
+  }
+
+  function handleVeterinarioBlur() {
+    persistir({
+      veterinario_responsavel: {
+        nome: veterinarioNome.trim(),
+        whatsapp: veterinarioWhatsapp.trim()
+      }
+    });
   }
 
   if (carregando) {
@@ -489,6 +512,20 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
           )}
         </section>
 
+        {/* Como Funciona o Alerta Climático? */}
+        <section className="glass-panel p-4 rounded-2xl shadow-sm border border-vivid-emerald/20 bg-gradient-to-br from-white/60 to-vivid-emerald/5">
+          <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide flex items-center gap-2">
+            <span>🌬️</span> Como funciona o Alerta Climático?
+          </h2>
+          <p className="text-xs font-medium text-forest-dark/80 mt-2 leading-relaxed">
+            A IA do AgBoy cruza os dados do clima local (Temperatura e Umidade Relativa) com a idade e aptidão do lote (Corte ou Postura) para calcular o <strong>ITU (Índice de Temperatura e Umidade)</strong>.
+          </p>
+          <ul className="mt-3 space-y-1 text-xs font-medium text-forest-dark/70 list-disc pl-5">
+            <li>Se o ITU sair da faixa de conforto ideal, a IA sugere manejos imediatos no painel principal.</li>
+            <li>Em casos críticos (Extremo Perigo), o Veterinário Responsável e os Contatos de WhatsApp recebem um aviso via WhatsApp com as recomendações da IA (ex: ligar nebulizadores, ajustar ventilação).</li>
+          </ul>
+        </section>
+
         {/* Gestão de Pesagens */}
         <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
           <div>
@@ -539,6 +576,45 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
               <p className="mt-2 text-[11px] font-medium text-forest-light/80">Lista de dias do ciclo separados por vírgula (ex: 7,14,21).</p>
             </div>
           )}
+        </section>
+
+        {/* Veterinário Responsável */}
+        <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
+          <div>
+            <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide">Veterinário Responsável</h2>
+            <p className="text-xs font-medium text-forest-light/80 mt-1">Contato principal para receber alertas sanitários críticos em tempo real.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="vet_nome" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
+                Nome do Veterinário
+              </label>
+              <input
+                id="vet_nome"
+                type="text"
+                value={veterinarioNome}
+                onChange={(e) => setVeterinarioNome(e.target.value)}
+                onBlur={handleVeterinarioBlur}
+                placeholder="Ex: Dr. Carlos"
+                className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
+              />
+            </div>
+            <div>
+              <label htmlFor="vet_whatsapp" className="mb-2 block text-xs font-bold text-forest-light uppercase tracking-wide">
+                WhatsApp (com DDI e DDD)
+              </label>
+              <input
+                id="vet_whatsapp"
+                type="tel"
+                value={veterinarioWhatsapp}
+                onChange={(e) => setVeterinarioWhatsapp(e.target.value)}
+                onBlur={handleVeterinarioBlur}
+                placeholder="+5511999998888"
+                className="w-full rounded-xl border border-white/50 bg-white/60 p-3 text-sm font-semibold text-forest-dark focus:outline-none focus:ring-2 focus:ring-vivid-emerald/50 focus:border-vivid-emerald/50 transition-shadow placeholder:text-forest-light/50"
+              />
+            </div>
+          </div>
         </section>
 
         {/* Contatos WhatsApp */}
@@ -704,6 +780,34 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
               </div>
             )}
           </section>
+
+        {/* Inteligência Coletiva (Data Lake Sprint 30) */}
+        <section className="glass-panel p-4 rounded-2xl shadow-sm space-y-4">
+          <div>
+            <h2 className="text-sm font-heading font-bold text-forest-dark uppercase tracking-wide flex items-center gap-2">
+              <span className="text-lg">🤝</span> Inteligência Coletiva & Privacidade
+            </h2>
+            <p className="text-xs font-medium text-forest-light/80 mt-1">Ao ativar, seus lotes encerrados ajudarão a calibrar as previsões do AgBoy na sua região, e você terá acesso ao painel de benchmarking regional de conversão alimentar.</p>
+          </div>
+          
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex items-center justify-center mt-0.5">
+              <input
+                type="checkbox"
+                checked={compartilharDadosIA}
+                onChange={handleToggleCompartilharIA}
+                className="sr-only"
+              />
+              <div className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out ${compartilharDadosIA ? 'bg-vivid-emerald' : 'bg-white border border-forest/20'}`}>
+                <div className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${compartilharDadosIA ? 'translate-x-5 bg-white shadow-sm' : 'bg-forest/30'}`} />
+              </div>
+            </div>
+            <div className="flex-1">
+              <span className="block text-sm font-bold text-forest-dark group-hover:text-vivid-emerald transition-colors">Compartilhar Métricas de Lote de Forma Anônima</span>
+              <span className="block text-[10px] font-medium text-forest-light/70 mt-1">Nenhum dado pessoal (nome, exata localização, telefone) é compartilhado. Apenas região (CEP), linhagem e índices zootécnicos.</span>
+            </div>
+          </label>
+        </section>
 
         {/* Gestão da Equipe */}
         {ehOwner && (

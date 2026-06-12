@@ -115,9 +115,29 @@ const MARCOS_POSTURA = [
 
 // --- Sub-componentes Estilizados ---
 
-const LineChart = ({ historico }) => {
+const LineChart = ({ historico, id_fazenda, onAbrirFormulario }) => {
   const W = 260, H = 90;
-  const isDemo = historico.length < 2;
+  const faltamDados = historico.length < 2;
+  const isDemoFazenda = id_fazenda === 'fazenda_demo_123';
+
+  if (faltamDados && !isDemoFazenda) {
+    return (
+      <div className="glass-panel rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-vivid-emerald/10 flex items-center justify-center text-xl mb-1">
+          📊
+        </div>
+        <p className="text-sm font-bold text-forest-dark">Este lote ainda não possui registros salvos.</p>
+        <p className="text-xs text-forest-light font-medium max-w-xs">
+          Use o botão '+' para registrar consumo de água, ração, temperatura e mortalidade hoje!
+        </p>
+        <button onClick={onAbrirFormulario} className="mt-2 px-4 py-2 bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white rounded-xl text-xs font-bold shadow-sm hover:scale-105 transition-transform">
+          + Novo Manejo
+        </button>
+      </div>
+    );
+  }
+
+  const isDemo = faltamDados && isDemoFazenda;
 
   // Dados de fallback para demonstração
   const demoWater = [40, 55, 48, 62, 58, 70, 65, 80, 74, 88, 82, 95];
@@ -860,6 +880,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
         onAbrirCalendario={onAbrirCalendario}
         onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
 
@@ -1297,7 +1318,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
                 
                 {/* Left Side: Chart (2 cols on Desktop) */}
                 <div className="lg:col-span-2 space-y-6">
-                   <LineChart historico={historico} />
+                   <LineChart historico={historico} id_fazenda={id_fazenda} onAbrirFormulario={onAbrirFormulario} />
 
                    {loteAtual && (
                      <GrowthChart historico={historico} aptidao={aptidao} dataAlojamento={dataAlojamentoLote} />

@@ -45,7 +45,8 @@ export default function CalendarioManejo({
   onAbrirNutricao,
   onAbrirAgua,
   onAbrirFinanceiro,
-  onAbrirRelatorios
+  onAbrirRelatorios,
+  onAbrirImportador
 }) {
   const [dataAtual, setDataAtual] = useState(new Date());
   const [lotes, setLotes] = useState(null);
@@ -150,6 +151,7 @@ export default function CalendarioManejo({
           onAbrirAgua={onAbrirAgua}
           onAbrirFinanceiro={onAbrirFinanceiro}
           onAbrirRelatorios={onAbrirRelatorios}
+          onAbrirImportador={onAbrirImportador}
         />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
@@ -177,6 +179,7 @@ export default function CalendarioManejo({
           onAbrirAgua={onAbrirAgua}
           onAbrirFinanceiro={onAbrirFinanceiro}
           onAbrirRelatorios={onAbrirRelatorios}
+          onAbrirImportador={onAbrirImportador}
         />
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
@@ -207,6 +210,7 @@ export default function CalendarioManejo({
         onAbrirAgua={onAbrirAgua}
         onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import SidebarMenu from "./SidebarMenu";
+import { functions } from "../firebase/config";
+import { httpsCallable } from "firebase/functions";
 
 export default function GestaoFinanceira({
   id_fazenda,
@@ -11,7 +13,8 @@ export default function GestaoFinanceira({
   onAbrirAgua,
   onAbrirBI,
   onAbrirCalendario,
-  onAbrirRelatorios
+  onAbrirRelatorios,
+  onAbrirImportador
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,6 +23,8 @@ export default function GestaoFinanceira({
     { id: 2, tipo: "despesa", valor: 4500, data: "2026-06-05", categoria: "Ração", descricao: "Compra de ração inicial" },
     { id: 3, tipo: "despesa", valor: 1200, data: "2026-06-01", categoria: "Sanidade", descricao: "Vacinas e vitaminas" }
   ]);
+  const [auditoria, setAuditoria] = useState(null);
+  const [carregandoAuditoria, setCarregandoAuditoria] = useState(false);
 
   const [novaTransacao, setNovaTransacao] = useState({
     tipo: "receita",
@@ -32,6 +37,27 @@ export default function GestaoFinanceira({
   const totalReceita = transacoes.filter(t => t.tipo === "receita").reduce((acc, t) => acc + t.valor, 0);
   const totalDespesa = transacoes.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + t.valor, 0);
   const lucroLiquido = totalReceita - totalDespesa;
+
+  const handleAuditoriaIA = async () => {
+    setCarregandoAuditoria(true);
+    setAuditoria(null);
+    try {
+      const chatComAgBoy = httpsCallable(functions, 'chatComAgBoy');
+      const res = await chatComAgBoy({
+        id_fazenda: id_fazenda,
+        mensagem: `Gere uma auditoria financeira detalhada. Sou o dono da granja. 
+Os dados do lote são: Receita Total: R$ ${totalReceita}, Despesa Total: R$ ${totalDespesa}, Lucro Líquido: R$ ${lucroLiquido}. 
+As transações registradas foram: ${JSON.stringify(transacoes)}.
+Forneça insights de eficiência e aponte possíveis gargalos. Foque os cálculos nestes números.`
+      });
+
+      setAuditoria(res.data.resposta);
+    } catch (err) {
+      setAuditoria(`Ops, houve um erro ao processar sua auditoria com o AgBoy: ${err.message}`);
+    } finally {
+      setCarregandoAuditoria(false);
+    }
+  };
 
   const handleSalvar = (e) => {
     e.preventDefault();
@@ -67,8 +93,9 @@ export default function GestaoFinanceira({
         onAbrirNutricao={onAbrirNutricao}
         onAbrirAgua={onAbrirAgua}
         onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
+        onAbrirFinanceiro={onAbrirFinanceiro}
         onAbrirRelatorios={onAbrirRelatorios}
+        onAbrirImportador={onAbrirImportador}
         onSair={onVoltar}
       />
 
@@ -123,6 +150,36 @@ export default function GestaoFinanceira({
                   {formatarMoeda(lucroLiquido)}
                 </p>
               </div>
+            </div>
+
+            {/* Auditoria IA (Sprint 30) */}
+            <div className="glass-panel rounded-2xl p-6 shadow-sm border border-vivid-emerald/30 animate-fade-in relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-vivid-emerald/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-lg font-heading font-bold text-forest-dark flex items-center gap-2">
+                    <span className="text-xl">🤖</span> Auditor Financeiro IA (AgBoy)
+                  </h2>
+                  <p className="text-sm text-forest-light">Obtenha um diagnóstico completo do ROI e da eficiência financeira do lote.</p>
+                </div>
+                <button
+                  onClick={handleAuditoriaIA}
+                  disabled={carregandoAuditoria}
+                  className="shrink-0 flex items-center gap-2 rounded-xl bg-forest-dark px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-forest transition-colors disabled:opacity-50"
+                >
+                  {carregandoAuditoria ? (
+                    <span className="animate-pulse">Analisando dados...</span>
+                  ) : (
+                    <>Gerar Relatório de Auditoria <span className="text-vivid-emerald">✨</span></>
+                  )}
+                </button>
+              </div>
+              
+              {auditoria && (
+                <div className="mt-4 p-5 bg-white/80 border border-white/60 rounded-xl shadow-inner text-sm font-medium text-forest-dark leading-relaxed whitespace-pre-wrap">
+                  {auditoria}
+                </div>
+              )}
             </div>
 
             {/* Transações */}

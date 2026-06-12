@@ -413,23 +413,29 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   useEffect(() => {
     if (!id_fazenda) return;
     
-    const unsub = onSnapshot(doc(db, 'fazendas', id_fazenda), (docSnap) => {
-      if (docSnap.exists()) {
-        const fazenda = docSnap.data();
-        if (fazenda?.alertas_config) {
-          setAlertasConfig((prev) => ({ ...prev, ...fazenda.alertas_config }));
+    const unsub = onSnapshot(
+      doc(db, 'fazendas', id_fazenda),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const fazenda = docSnap.data();
+          if (fazenda?.alertas_config) {
+            setAlertasConfig((prev) => ({ ...prev, ...fazenda.alertas_config }));
+          }
+          if (fazenda?.config_pesagem) {
+            setConfigPesagemFazenda(fazenda.config_pesagem);
+          }
+          if (fazenda?.latitude != null && fazenda?.longitude != null) {
+            setLocalizacaoFazenda({ latitude: fazenda.latitude, longitude: fazenda.longitude });
+          }
+          if (fazenda?.plano) {
+            setPlanoFazenda(fazenda.plano);
+          }
         }
-        if (fazenda?.config_pesagem) {
-          setConfigPesagemFazenda(fazenda.config_pesagem);
-        }
-        if (fazenda?.latitude != null && fazenda?.longitude != null) {
-          setLocalizacaoFazenda({ latitude: fazenda.latitude, longitude: fazenda.longitude });
-        }
-        if (fazenda?.plano) {
-          setPlanoFazenda(fazenda.plano);
-        }
+      },
+      (error) => {
+        console.error('[DashboardReal] Falha no listener da fazenda:', error);
       }
-    });
+    );
     
     return () => unsub();
   }, [id_fazenda]);

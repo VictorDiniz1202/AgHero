@@ -148,20 +148,26 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   useEffect(() => {
     if (!id_fazenda) return;
     
-    const unsubFazenda = onSnapshot(doc(db, 'fazendas', id_fazenda), (docSnap) => {
-      if (docSnap.exists()) {
-        const fazenda = docSnap.data();
-        const plano = fazenda?.plano || 'Essencial';
-        
-        const hoje = new Date().toISOString().split('T')[0];
-        const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
-        getDoc(limitRef).then(limitSnap => {
-          let envios = 0;
-          if (limitSnap.exists()) envios = limitSnap.data().envios || 0;
-          setLimites({ enviosHoje: envios, plano, max: 3 });
-        });
+    const unsubFazenda = onSnapshot(
+      doc(db, 'fazendas', id_fazenda),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const fazenda = docSnap.data();
+          const plano = fazenda?.plano || 'Essencial';
+          
+          const hoje = new Date().toISOString().split('T')[0];
+          const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
+          getDoc(limitRef).then(limitSnap => {
+            let envios = 0;
+            if (limitSnap.exists()) envios = limitSnap.data().envios || 0;
+            setLimites({ enviosHoje: envios, plano, max: 3 });
+          });
+        }
+      },
+      (error) => {
+        console.error('[CentralBI] Falha no listener da fazenda:', error);
       }
-    });
+    );
     
     return () => unsubFazenda();
   }, [id_fazenda]);

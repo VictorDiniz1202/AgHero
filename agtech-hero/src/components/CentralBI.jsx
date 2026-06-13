@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { obterAlertasEnviados, obterFazenda, recuperarHistoricoChat, normalizarPlano } from '../firebase/services';
+import { obterAlertasEnviados, obterFazenda, recuperarHistoricoChat, normalizarPlano, obterLotesAtivos } from '../firebase/services';
 import { db } from '../firebase/config';
 import { doc, getDoc, setDoc, onSnapshot, increment } from 'firebase/firestore';
 import { functions } from "../firebase/config";
@@ -62,7 +62,20 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   const chatScrollRef = useRef(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const { isOffline } = useConectividade();
+  const [loteAtivo, setLoteAtivo] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+
+  useEffect(() => {
+    if (id_fazenda) {
+      obterLotesAtivos(id_fazenda).then(lotes => {
+        if (lotes && lotes.length > 0) {
+          setLoteAtivo(lotes[0]);
+        } else {
+          setLoteAtivo(null);
+        }
+      }).catch(console.error);
+    }
+  }, [id_fazenda]);
   const [isDragging, setIsDragging] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const mediaRecorderRef = useRef(null);
@@ -560,26 +573,36 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
           onAbrirUpsell={() => setModalUpsellAberto(true)}
         />
         
-        <section className="glass-panel rounded-2xl shadow-sm overflow-hidden border border-white/60 p-4">
-           <h3 className="text-sm font-heading font-bold text-forest-dark mb-4 flex items-center gap-2">
-             <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-pulse"></span>
-             Telemetria em Tempo Real
-           </h3>
-           <div className="space-y-3">
-             <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
-               <span className="text-xs font-semibold text-forest-dark/80">Temp. Média (Lote 1)</span>
-               <span className="text-sm font-bold text-forest-dark">28.5°C</span>
+        {loteAtivo ? (
+          <section className="glass-panel rounded-2xl shadow-sm overflow-hidden border border-white/60 p-4">
+             <h3 className="text-sm font-heading font-bold text-forest-dark mb-4 flex items-center gap-2">
+               <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-pulse"></span>
+               Telemetria em Tempo Real
+             </h3>
+             <div className="space-y-3">
+               <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
+                 <span className="text-xs font-semibold text-forest-dark/80">Temp. Média ({loteAtivo.identificacao})</span>
+                 <span className="text-sm font-bold text-forest-dark">28.5°C</span>
+               </div>
+               <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
+                 <span className="text-xs font-semibold text-forest-dark/80">Umidade Relativa</span>
+                 <span className="text-sm font-bold text-forest-dark">65%</span>
+               </div>
+               <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
+                 <span className="text-xs font-semibold text-forest-dark/80">Consumo Água / Hora</span>
+                 <span className="text-sm font-bold text-forest-dark">Normal</span>
+               </div>
              </div>
-             <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
-               <span className="text-xs font-semibold text-forest-dark/80">Umidade Relativa</span>
-               <span className="text-sm font-bold text-forest-dark">65%</span>
-             </div>
-             <div className="flex justify-between items-center bg-agriAlert-red/10 p-3 rounded-xl border border-agriAlert-red/20 shadow-sm">
-               <span className="text-xs font-semibold text-agriAlert-red">Consumo Água / Hora</span>
-               <span className="text-sm font-bold text-agriAlert-red">Queda 15% 🚨</span>
-             </div>
-           </div>
-        </section>
+          </section>
+        ) : (
+          <section className="glass-panel rounded-2xl shadow-sm overflow-hidden border border-white/60 p-6 flex flex-col items-center justify-center text-center gap-3 opacity-80">
+            <span className="text-3xl">📡</span>
+            <div>
+              <h4 className="text-sm font-bold text-forest-dark">Nenhum Lote Ativo</h4>
+              <p className="text-xs text-forest-light font-medium mt-1">A telemetria será exibida aqui assim que você iniciar um novo lote.</p>
+            </div>
+          </section>
+        )}
       </aside>
       </div>
 

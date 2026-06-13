@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function isMemberOfFarm(farmId) {
-      return farmId == 'fazenda_demo_123' || (request.auth != null && (
+      return (farmId == 'fazenda_demo_123' && request.auth != null) || (request.auth != null && (
         (exists(/databases/$(database)/documents/collaborators/$(request.auth.uid)) && 
          getCollaboratorData(farmId).farmId == farmId) ||
         (exists(/databases/$(database)/documents/fazendas/$(farmId)) &&
@@ -28,17 +28,17 @@ service cloud.firestore {
     }
 
     function isOwnerOfFarm(farmId) {
-      return farmId == 'fazenda_demo_123' || (request.auth != null && (
+      return request.auth != null && (
         (exists(/databases/$(database)/documents/collaborators/$(request.auth.uid)) && 
          getCollaboratorData(farmId).farmId == farmId && 
          getCollaboratorData(farmId).role == 'owner') ||
         (exists(/databases/$(database)/documents/fazendas/$(farmId)) &&
          get(/databases/$(database)/documents/fazendas/$(farmId)).data.membros[request.auth.uid] == 'dono')
-      ));
+      );
     }
 
     function isVeterinarianOfFarm(farmId) {
-      return farmId == 'fazenda_demo_123' || (request.auth != null && (
+      return (farmId == 'fazenda_demo_123' && request.auth != null) || (request.auth != null && (
         (exists(/databases/$(database)/documents/collaborators/$(request.auth.uid)) && 
          getCollaboratorData(farmId).farmId == farmId && 
          getCollaboratorData(farmId).role in ['owner', 'veterinarian']) ||
@@ -51,12 +51,28 @@ service cloud.firestore {
     // /collaborators/{uid}
     // ═════════════════════════════════════════════════════════════════
     match /collaborators/{uid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && (
+        request.auth.uid == uid ||
+        isMemberOfFarm(resource.data.farmId) ||
+        (resource.data.uid == null && resource.data.email == request.auth.token.email)
+      );
       allow create: if request.auth != null && (
-        (request.auth.uid == uid && request.resource.data.role == 'owner') ||
+        (request.auth.uid == uid && 
+         request.resource.data.role == 'owner' &&
+         request.resource.data.farmId == 'fazenda_' + request.auth.uid &&
+         exists(/databases/$(database)/documents/fazendas/$(request.resource.data.farmId)) &&
+         get(/databases/$(database)/documents/fazendas/$(request.resource.data.farmId)).data.membros[request.auth.uid] == 'dono'
+        ) ||
         (exists(/databases/$(database)/documents/collaborators/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/collaborators/$(request.auth.uid)).data.farmId == request.resource.data.farmId &&
-         get(/databases/$(database)/documents/collaborators/$(request.auth.uid)).data.role == 'owner')
+         get(/databases/$(database)/documents/collaborators/$(request.auth.uid)).data.role == 'owner') ||
+        (request.auth.uid == uid &&
+         request.resource.data.role in ['operator', 'veterinarian'] &&
+         request.resource.data.uid == request.auth.uid &&
+         request.resource.data.email == request.auth.token.email &&
+         exists(/databases/$(database)/documents/fazendas/$(request.resource.data.farmId)) &&
+         exists(/databases/$(database)/documents/fazendas/$(request.resource.data.farmId)/convites_pendentes/$(request.auth.token.email)) &&
+         get(/databases/$(database)/documents/fazendas/$(request.resource.data.farmId)/convites_pendentes/$(request.auth.token.email)).data.role == request.resource.data.role)
       );
       allow update, delete: if request.auth != null && (
         exists(/databases/$(database)/documents/collaborators/$(request.auth.uid)) &&
@@ -71,7 +87,11 @@ service cloud.firestore {
     match /fazendas/{id_fazenda} {
       allow read: if isMemberOfFarm(id_fazenda);
       allow create: if request.auth != null;
-      allow update, delete: if isOwnerOfFarm(id_fazenda);
+      // O campo 'plano' não pode ser alterado pelo dono diretamente — apenas
+      // via Admin SDK (Cloud Functions), após confirmação real de pagamento.
+      allow update: if isOwnerOfFarm(id_fazenda) &&
+        request.resource.data.plano == resource.data.plano;
+      allow delete: if isOwnerOfFarm(id_fazenda);
 
       // ═══════════════════════════════════════════════════════════════
       // /fazendas/{id_fazenda}/lotes/{id_lote}
@@ -125,6 +145,50 @@ service cloud.firestore {
       }
 
       // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/limites_bi/{id_limite}
+      // ═══════════════════════════════════════════════════════════════
+      match /limites_bi/{id_limite} {
+        allow read, write: if isMemberOfFarm(id_fazenda);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/chat_agboy/{id_mensagem}
+      // ═══════════════════════════════════════════════════════════════
+      match /chat_agboy/{id_mensagem} {
+        allow read: if isMemberOfFarm(id_fazenda) && 
+          (get(/databases/$(database)/documents/fazendas/$(id_fazenda)).data.plano == 'Inteligente');
+        allow write: if false; // Escritas apenas via Cloud Functions (Admin SDK)
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/agboy_jobs/{id_job}
+      // ═══════════════════════════════════════════════════════════════
+      match /agboy_jobs/{id_job} {
+        allow read: if isMemberOfFarm(id_fazenda);
+        allow write: if false; // Escritas apenas via Cloud Functions
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/dispositivos_iot/{id_dispositivo}
+      // ═══════════════════════════════════════════════════════════════
+      match /dispositivos_iot/{id_dispositivo} {
+        allow read, write: if isOwnerOfFarm(id_fazenda);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/sensores/{id_sensor}
+      // ═══════════════════════════════════════════════════════════════
+      match /sensores/{id_sensor} {
+        allow read: if isMemberOfFarm(id_fazenda);
+        allow write: if false;
+
+        match /historico/{id_log} {
+          allow read: if isMemberOfFarm(id_fazenda);
+          allow write: if false;
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
       // /fazendas/{id_fazenda}/alertas_enviados/{id_alerta}
       // ═══════════════════════════════════════════════════════════════
       match /alertas_enviados/{id_alerta} {
@@ -137,6 +201,17 @@ service cloud.firestore {
       // ═══════════════════════════════════════════════════════════════
       match /checkout_sessions/{id_sessao} {
         allow read, write: if isOwnerOfFarm(id_fazenda);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // /fazendas/{id_fazenda}/convites_pendentes/{email}
+      // Marcador de convite criado pelo dono; consultado pela regra de
+      // /collaborators no auto-vínculo do convidado (operator/veterinarian).
+      // ═══════════════════════════════════════════════════════════════
+      match /convites_pendentes/{email} {
+        allow read: if request.auth != null;
+        allow create, delete: if isOwnerOfFarm(id_fazenda);
+        allow update: if false;
       }
     }
 

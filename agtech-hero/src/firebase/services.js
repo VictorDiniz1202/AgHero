@@ -37,6 +37,7 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -93,7 +94,7 @@ import {
  * @param {string} donoUid     UID (Firebase Auth) do usuário dono.
  * @returns {Promise<Fazenda>}
  */
-export async function criarFazenda(nome, tipoProducao, contatos, donoUid) {
+export async function criarFazenda(nome, tipoProducao, contatos, donoUid, latitude = null, longitude = null) {
   const fazendaRef = doc(db, 'fazendas', 'fazenda_' + donoUid);
 
   const fazendaData = {
@@ -105,6 +106,11 @@ export async function criarFazenda(nome, tipoProducao, contatos, donoUid) {
     alertas_config: {},
     membros: { [donoUid]: 'dono' },
   };
+
+  if (latitude !== null && longitude !== null) {
+    fazendaData.latitude = latitude;
+    fazendaData.longitude = longitude;
+  }
 
   setDoc(fazendaRef, fazendaData).catch((error) => {
     console.error(`[Firestore] Falha ao sincronizar criação da fazenda "${fazendaRef.id}":`, error);
@@ -178,7 +184,7 @@ export async function obterLotesAtivos(id_fazenda) {
         nome: "Fazenda Progresso (Demo)",
         tipo_producao: "Corte",
         contatos_autorizados: ["+5511999999999"], // Número de teste
-        plano: "Inteligente",
+        plano: "Pro",
         membros: { "dono_demo_123": "dono" }
       }, { merge: true }).catch((error) => {
         console.error(`[Firestore] Falha ao auto-semear documento de fazenda "${id_fazenda}":`, error);
@@ -289,33 +295,6 @@ export async function obterUltimosRegistros(id_fazenda, limite) {
   } catch (error) {
     console.error(`[Firestore] Falha ao obter últimos registros da fazenda "${id_fazenda}":`, error);
     return [];
-  }
-}
-
-/**
- * Busca o registro diário de um lote em uma data específica, usando o ID
- * determinístico `${id_lote}_${data_registro_str}`. Usado pelo motor de
- * alertas para comparar o consumo de hoje com o do dia anterior sem
- * precisar de uma query extra.
- *
- * @param {string} id_fazenda
- * @param {string} id_lote
- * @param {string} data_registro_str  Formato "YYYY-MM-DD".
- * @returns {Promise<RegistroDiario|null>}
- */
-export async function obterRegistroPorData(id_fazenda, id_lote, data_registro_str) {
-  try {
-    const id_registro = `${id_lote}_${data_registro_str}`;
-    const registroRef = doc(db, 'fazendas', id_fazenda, 'registros_diarios', id_registro);
-    const docSnap = await getDoc(registroRef);
-
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    return null;
-  } catch (error) {
-    console.error(`[Firestore] Falha ao obter registro "${id_lote}_${data_registro_str}" da fazenda "${id_fazenda}":`, error);
-    return null;
   }
 }
 
@@ -519,30 +498,6 @@ export async function obterRegistrosSanitarios(id_fazenda, id_lote) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Salva um registro de alerta enviado no histórico da fazenda.
- * Segue a abordagem offline-first: a promessa não bloqueia a execução, e
- * a UI pode ser atualizada otimisticamente.
- *
- * @param {string} id_fazenda
- * @param {Object} alertaData
- * @returns {Promise<Object>}
- */
-export async function salvarAlertaEnviado(id_fazenda, alertaData) {
-  const docRef = doc(collection(db, 'fazendas', id_fazenda, 'alertas_enviados'));
-
-  const data = {
-    ...alertaData,
-    data_envio: Timestamp.now(),
-  };
-
-  setDoc(docRef, data).catch((error) => {
-    console.error(`[Firestore] Falha ao sincronizar log de alerta na fazenda "${id_fazenda}":`, error);
-  });
-
-  return { id: docRef.id, ...data };
-}
-
-/**
  * Recupera o histórico de alertas disparados ordenados por data decrescente.
  *
  * @param {string} id_fazenda
@@ -577,7 +532,7 @@ export async function loginComEmail(email, senha) {
   return userCredential.user;
 }
 
-export async function criarConta(email, senha, nomeFazenda = "Minha Granja", tipoProducao = "Corte") {
+export async function criarConta(email, senha, nomeFazenda = "Minha Granja", tipoProducao = "Corte", latitude = null, longitude = null) {
   if (!auth.createUserWithEmailAndPassword && auth.currentUser?.uid === 'dono_demo_123') {
     return auth.currentUser;
   }
@@ -589,7 +544,7 @@ export async function criarConta(email, senha, nomeFazenda = "Minha Granja", tip
   setDoc(userDocRef, { onboarding_concluido: false }, { merge: true }).catch(e => console.warn('Aviso ignorado ao criar conta (race condition no rules):', e));
 
   // Create a default farm for the new user
-  await criarFazenda(nomeFazenda, tipoProducao, [], user.uid);
+  await criarFazenda(nomeFazenda, tipoProducao, [], user.uid, latitude, longitude);
   
   return user;
 }
@@ -690,6 +645,13 @@ export async function adicionarColaborador(id_fazenda, email, role, nome) {
     nome
   };
   setDoc(docRef, data).catch(console.error);
+
+  // Marca o convite como pendente na própria fazenda, para que as Security
+  // Rules possam validar o auto-vínculo do convidado sem confiar em campos
+  // preenchidos pelo próprio cliente.
+  const conviteRef = doc(db, 'fazendas', id_fazenda, 'convites_pendentes', email);
+  setDoc(conviteRef, { role, email }).catch(console.error);
+
   return { id: docRef.id, ...data };
 }
 
@@ -734,6 +696,8 @@ export async function vincularColaboradorSePendente(uid, email, displayName) {
         if (docSnap.id !== uid) {
           await deleteDoc(docSnap.ref);
         }
+        // Remove o marcador de convite pendente para evitar reuso do vínculo
+        await deleteDoc(doc(db, 'fazendas', data.farmId, 'convites_pendentes', email)).catch(() => {});
       }
     } else {
       // Criação inicial caso seja o dono recém cadastrado que não passou por convite
@@ -813,19 +777,17 @@ export async function obterCargasSilo(id_fazenda, id_lote) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Registra/incrementa o limite diário de uso da IA para o plano Essencial.
+ * Registra/incrementa o limite diário de uso da IA para o plano Standard.
  * @param {string} id_fazenda 
  * @returns {Promise<void>}
  */
 export async function incrementarUsoIA(id_fazenda) {
-  const hoje = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
 
   try {
-    const docSnap = await getDoc(limitRef);
-    const currentEnvios = docSnap.exists() ? docSnap.data().envios || 0 : 0;
-    
-    setDoc(limitRef, { envios: currentEnvios + 1, data: hoje }, { merge: true }).catch(error => {
+    setDoc(limitRef, { envios: increment(1), data: hoje }, { merge: true }).catch(error => {
       console.error(`[Firestore] Falha offline ao incrementar IA na fazenda "${id_fazenda}":`, error);
     });
   } catch (e) {
@@ -1007,13 +969,25 @@ export async function criarSessaoCheckout(id_fazenda, uid_usuario) {
 }
 
 /**
+ * Normaliza nomes de planos legados para a nova nomenclatura.
+ */
+export function normalizarPlano(plano) {
+  if (!plano) return 'Essencial';
+  const p = plano.toLowerCase();
+  if (p === 'inteligente' || p === 'pro') return 'Inteligente';
+  return 'Essencial';
+}
+
+/**
  * Retorna dados fictícios de faturamento baseados no plano da fazenda
  */
 export async function obterStatusFaturamento(id_fazenda, planoAtual) {
-  if (planoAtual !== 'Inteligente') {
+  const plano = normalizarPlano(planoAtual);
+  
+  if (plano !== 'Inteligente') {
     return {
       plano: 'Essencial',
-      valor: 40.00,
+      valor: 49.90,
       renovacao: null,
       metodoPagamento: null,
       recibos: []
@@ -1022,12 +996,12 @@ export async function obterStatusFaturamento(id_fazenda, planoAtual) {
   
   return {
     plano: 'Inteligente',
-    valor: 110.00,
+    valor: 89.90,
     renovacao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
     metodoPagamento: 'Cartão de Crédito (Visa **** 4242)',
     recibos: [
-      { id: 'inv_01', data: '10/05/2026', valor: 110.00, status: 'pago' },
-      { id: 'inv_02', data: '10/04/2026', valor: 110.00, status: 'pago' }
+      { id: 'inv_01', data: '10/05/2026', valor: 89.90, status: 'pago' },
+      { id: 'inv_02', data: '10/04/2026', valor: 89.90, status: 'pago' }
     ]
   };
 }
@@ -1118,38 +1092,50 @@ export async function concluirOnboarding(uid) {
 
 /**
  * Importa registros e transações financeiras em massa para um lote.
- * 
+ *
+ * Cada linha é gravada individualmente: uma linha com erro (ex.: data
+ * inválida, falha de rede pontual) é registrada em `erros` e NÃO interrompe
+ * a importação das demais linhas da planilha.
+ *
  * @param {string} id_fazenda
  * @param {string} id_lote
  * @param {Array} registros - Lista de objetos com dados de registro diário.
  * @param {Array} transacoes - Lista de objetos com dados financeiros.
+ * @returns {Promise<{registrosImportados: number, transacoesImportadas: number, erros: Array<{tipo: string, data_str: string, mensagem: string}>}>}
  */
 export async function importarDadosLote(id_fazenda, id_lote, registros = [], transacoes = []) {
-  try {
-    // Registros diários
-    for (const r of registros) {
-      if (!r.data_str) continue;
-      const ref = doc(collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'registros_diarios'));
-      setDoc(ref, {
-        id_lote: id_lote,
-        ...r,
-        data_registro: Timestamp.now()
-      }).catch(err => console.error('Erro na gravação otimista de registro:', err));
-    }
+  const erros = [];
+  let registrosImportados = 0;
+  let transacoesImportadas = 0;
 
-    // Transações financeiras
-    for (const t of transacoes) {
-      if (!t.valor) continue;
-      const ref = doc(collection(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'transacoes'));
-      setDoc(ref, {
-        ...t,
-        timestamp_registro: Timestamp.now()
-      }).catch(err => console.error('Erro na gravação otimista de transação:', err));
+  for (const r of registros) {
+    if (!r.data_str) continue;
+    try {
+      const [ano, mes, dia] = r.data_str.split('-').map(Number);
+      await salvarRegistroDiario(id_fazenda, id_lote, {
+        ...r,
+        data_registro: Timestamp.fromDate(new Date(ano, mes - 1, dia, 12, 0, 0)),
+        data_registro_str: r.data_str,
+      });
+      registrosImportados++;
+    } catch (error) {
+      console.error(`[Firestore] Falha ao importar registro do dia "${r.data_str}" no lote "${id_lote}":`, error);
+      erros.push({ tipo: 'registro_diario', data_str: r.data_str, mensagem: error.message });
     }
-  } catch (error) {
-    console.error(`[Firestore] Erro na importação em lote na fazenda ${id_fazenda}:`, error);
-    throw error;
   }
+
+  for (const t of transacoes) {
+    if (!t.valor) continue;
+    try {
+      await registrarTransacao(id_fazenda, id_lote, t);
+      transacoesImportadas++;
+    } catch (error) {
+      console.error(`[Firestore] Falha ao importar transação ("${t.tipo}", ${t.data_str}) no lote "${id_lote}":`, error);
+      erros.push({ tipo: 'transacao', data_str: t.data_str, mensagem: error.message });
+    }
+  }
+
+  return { registrosImportados, transacoesImportadas, erros };
 }
 
 /**
@@ -1223,5 +1209,31 @@ export async function recuperarHistoricoChat(id_fazenda) {
   } catch (error) {
     console.error(`[Firestore] Erro ao recuperar histórico do AgBoy:`, error);
     return [];
+  }
+}
+
+/**
+ * Atualiza um registro diário parcialmente usando FieldValue.increment() para dados cumulativos.
+ * @param {string} id_fazenda 
+ * @param {string} id_lote 
+ * @param {string} data_registro_str (YYYY-MM-DD)
+ * @param {Object} mudancas 
+ */
+export async function atualizarRegistroParcial(id_fazenda, id_lote, data_registro_str, mudancas) {
+  try {
+    const docRef = doc(db, 'fazendas', id_fazenda, 'lotes', id_lote, 'registros_diarios', `${id_lote}_${data_registro_str}`);
+    const atualizacoes = {};
+    if (mudancas.mortalidade_qtd) atualizacoes.mortalidade_qtd = increment(mudancas.mortalidade_qtd);
+    if (mudancas.racao_kg) atualizacoes.racao_kg = increment(mudancas.racao_kg);
+    if (mudancas.agua_litros) atualizacoes.agua_litros = increment(mudancas.agua_litros);
+    if (mudancas.producao_ovos_qtd) atualizacoes.producao_ovos_qtd = increment(mudancas.producao_ovos_qtd);
+    
+    // Assegurar metadados do documento em caso de criacao
+    atualizacoes.data_registro_str = data_registro_str;
+    atualizacoes.ultima_atualizacao = serverTimestamp();
+
+    await setDoc(docRef, atualizacoes, { merge: true });
+  } catch (error) {
+    console.error(`[Firestore] Erro na atualizacao parcial: `, error);
   }
 }

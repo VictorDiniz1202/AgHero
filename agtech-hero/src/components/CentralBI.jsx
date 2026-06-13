@@ -1,17 +1,41 @@
 import { useEffect, useState, useRef } from 'react';
-import { obterAlertasEnviados, obterFazenda, recuperarHistoricoChat } from '../firebase/services';
+import { obterAlertasEnviados, obterFazenda, recuperarHistoricoChat, normalizarPlano } from '../firebase/services';
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, increment } from 'firebase/firestore';
 import { functions } from "../firebase/config";
 import { httpsCallable } from "firebase/functions";
-import SidebarMenu from "./SidebarMenu";
 import ModalUpsell from './ModalUpsell';
+import DOMPurify from 'dompurify';
+import { useConectividade } from '../hooks/useConectividade';
+import { parseXLSX, formatarResumoParaIA } from '../utils/parsePlanilha';
+
+// Hook registrado uma única vez no escopo do módulo (evita acúmulo de hooks duplicados a cada sanitize())
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+  if (/^on/i.test(data.attrName)) {
+    data.keepAttr = false;
+  }
+  if (data.attrName === 'href' || data.attrName === 'xlink:href') {
+    const url = data.attrValue.toLowerCase();
+    if (url.startsWith('javascript:') || url.startsWith('data:text/html')) {
+      data.keepAttr = false;
+    }
+  }
+});
 
 /**
  * Normaliza um SVG vindo da IA (n8n) para escalar fluidamente:
  * remove width/height fixos e força width="100%" height="auto",
  * garantindo responsividade no chat sem quebrar o layout lateral.
  */
+function sanitize(html) {
+  if (!html) return '';
+
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'foreignObject', 'style']
+  });
+}
+
 function prepararSvgResponsivo(svgString) {
   let svg = svgString.replace(/<svg([^>]*)>/i, (match, attrs) => {
     const semTamanhoFixo = attrs
@@ -19,7 +43,7 @@ function prepararSvgResponsivo(svgString) {
       .replace(/\sheight="[^"]*"/i, '');
     return `<svg${semTamanhoFixo} width="100%" height="auto">`;
   });
-  return svg;
+  return sanitize(svg);
 }
 
 export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirCalendario, onAbrirDashboard, onAbrirLotes, onAbrirConfiguracoes, onAbrirFormulario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
@@ -37,8 +61,9 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   const [limites, setLimites] = useState({ enviosHoje: 0, plano: 'Essencial', max: 3 });
   const chatScrollRef = useRef(null);
   const [menuAberto, setMenuAberto] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const { isOffline } = useConectividade();
   const [isRecording, setIsRecording] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const mediaRecorderRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -110,14 +135,30 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
     }
   };
 
+  const mensagensRef = useRef(mensagens);
+  const attachmentRef = useRef(attachment);
+  
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    mensagensRef.current = mensagens;
+  }, [mensagens]);
+
+  useEffect(() => {
+    attachmentRef.current = attachment;
+  }, [attachment]);
+
+  useEffect(() => {
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+      if (attachmentRef.current?.url) {
+        URL.revokeObjectURL(attachmentRef.current.url);
+      }
+      mensagensRef.current.forEach(msg => {
+        if (msg.attachment?.url) {
+          URL.revokeObjectURL(msg.attachment.url);
+        }
+      });
     };
   }, []);
 
@@ -153,7 +194,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
       (docSnap) => {
         if (docSnap.exists()) {
           const fazenda = docSnap.data();
-          const plano = fazenda?.plano || 'Essencial';
+          const plano = normalizarPlano(fazenda?.plano);
           
           const hoje = new Date().toISOString().split('T')[0];
           const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
@@ -178,10 +219,70 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
     const novoEnvio = limites.enviosHoje + 1;
     if (novoEnvio > limites.max) return false;
     const limitRef = doc(db, 'fazendas', id_fazenda, 'limites_bi', hoje);
-    await setDoc(limitRef, { envios: novoEnvio, data: hoje }, { merge: true });
+    await setDoc(limitRef, { envios: increment(1), data: hoje }, { merge: true });
     setLimites(prev => ({ ...prev, enviosHoje: novoEnvio }));
     return true;
   }
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    // Se o elemento destino não estiver contido no container de arrasto, significa que saiu da janela
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
+      try {
+        setMensagens(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'system',
+          texto: 'Analisando planilha...',
+          timestamp: new Date().toISOString()
+        }]);
+        setCarregando(true);
+        const { headers, rawRows } = await parseXLSX(file);
+        const resumo = formatarResumoParaIA(headers, rawRows);
+        
+        // Simula o envio do contexto para o AgBoy
+        setInput(`Aqui está a planilha '${file.name}':\n\n${resumo}\n\nPor favor, analise esses dados.`);
+      } catch (err) {
+        console.error('Erro ao ler planilha via drag and drop', err);
+        setMensagens(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'system',
+          texto: 'Erro ao processar a planilha. Certifique-se de que é um formato XLSX/CSV válido.',
+          timestamp: new Date().toISOString()
+        }]);
+      } finally {
+        setCarregando(false);
+      }
+    } else {
+      // Tenta anexar como imagem (fall-back)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
+        setAttachment({
+          type: 'image',
+          base64: base64data,
+          mimeType: file.type,
+          url: URL.createObjectURL(file)
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   async function enviarMensagem(e) {
     e?.preventDefault();
@@ -247,28 +348,31 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
   }, [mensagens]);
 
   return (
-    <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      {/* Sidebar */}
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="bi"
-        papelUsuario={papelUsuario}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirLotes={onAbrirLotes}
-        onAbrirConfiguracoes={onAbrirConfiguracoes}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+    <div 
+      className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans"
+      onDragOver={handleDragOver}
+    >
+      {/* Overlay Drag & Drop */}
+      {isDragging && (
+        <div 
+          className="absolute inset-0 z-[10000] bg-vivid-emerald/10 backdrop-blur-md border-4 border-dashed border-vivid-emerald flex flex-col items-center justify-center animate-fade-in m-4 rounded-[2rem]"
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          <div className="w-20 h-20 bg-white shadow-xl rounded-full flex items-center justify-center mb-4 pointer-events-none">
+            <svg className="w-10 h-10 text-vivid-emerald animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+          </div>
+          <h2 className="text-2xl font-heading font-bold text-forest-dark pointer-events-none">Solte para Enviar ao AgBoy</h2>
+          <p className="text-sm font-medium text-forest-dark/80 mt-2 pointer-events-none">Planilhas XLSX/CSV, Imagens ou Notas Fiscais</p>
+        </div>
+      )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20 relative">
+      {/* Main Container */}
+      <div className="flex-1 flex h-full min-w-0">
+        
+        {/* Chat Area */}
+        <div className="flex-1 lg:flex-none lg:w-[60%] flex flex-col min-w-0 h-full overflow-hidden bg-white/20 relative">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30 shrink-0">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-forest-dark hover:bg-white/50 rounded-xl" onClick={() => setMenuAberto(true)}>
@@ -291,11 +395,13 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
 
         <main ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 flex justify-center">
           <div className="w-full max-w-3xl flex flex-col space-y-4">
-            <HistoricoAlertas
-              id_fazenda={id_fazenda}
-              papelUsuario={papelUsuario}
-              onAbrirUpsell={() => setModalUpsellAberto(true)}
-            />
+            <div className="lg:hidden">
+              <HistoricoAlertas
+                id_fazenda={id_fazenda}
+                papelUsuario={papelUsuario}
+                onAbrirUpsell={() => setModalUpsellAberto(true)}
+              />
+            </div>
             {mensagens.map(msg => {
               const textoSafe = msg.texto || '';
               const ehSvg = textoSafe.trim().startsWith('<svg');
@@ -323,7 +429,7 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
                     ehSvg ? (
                       <div className="svg-chart-container" dangerouslySetInnerHTML={{ __html: prepararSvgResponsivo(textoSafe) }} />
                     ) : ehHtml ? (
-                      <div dangerouslySetInnerHTML={{ __html: textoSafe }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitize(textoSafe) }} />
                     ) : (
                       textoSafe
                     )
@@ -346,8 +452,11 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
 
         <div className="w-full px-4 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] lg:p-6 bg-gradient-to-t from-offwhite via-white/95 to-white/90 border-t border-white/40 flex flex-col items-center gap-3 shrink-0 relative z-20">
           {isOffline && (
-            <div className="w-full max-w-3xl rounded-2xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 px-4 py-3 text-xs font-bold text-agriAlert-orange text-center">
-              O AgBoy está offline no momento. Conecte-se à internet para enviar perguntas e cruzar dados de produção.
+            <div className="w-full max-w-3xl rounded-2xl border border-white/60 bg-white/40 backdrop-blur-md px-5 py-4 shadow-sm flex items-center gap-3 animate-fade-in">
+              <span className="text-xl">🤖</span>
+              <p className="text-xs font-bold text-forest-dark flex-1">
+                O AgBoy está temporariamente offline. A Inteligência Artificial requer conexão com a internet para gerar insights. Você ainda pode preencher dados de manejo offline em outras telas.
+              </p>
             </div>
           )}
           {!isOffline && limites.plano !== 'Inteligente' && limites.enviosHoje >= limites.max && (
@@ -374,7 +483,10 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
                     {attachment.type === 'image' ? 'Imagem anexada' : 'Áudio anexado'}
                   </span>
                 </div>
-                <button type="button" onClick={() => setAttachment(null)} className="p-2 text-agriAlert-red hover:bg-agriAlert-red/10 rounded-full transition-colors">
+                <button type="button" onClick={() => {
+                  if (attachment.url) URL.revokeObjectURL(attachment.url);
+                  setAttachment(null);
+                }} className="p-2 text-agriAlert-red hover:bg-agriAlert-red/10 rounded-full transition-colors">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
@@ -433,6 +545,42 @@ export default function CentralBI({ id_fazenda, papelUsuario, onVoltar, onAbrirC
             </form>
           </div>
         </div>
+      </div>
+
+      {/* Painel Lateral Direito (Desktop Apenas) */}
+      <aside className="hidden lg:flex lg:w-[40%] flex-col border-l border-white/60 bg-white/30 backdrop-blur-md p-6 overflow-y-auto gap-6 z-20">
+        <div className="mb-2">
+          <h2 className="text-lg font-heading font-bold text-forest-dark">Painel da Fazenda</h2>
+          <p className="text-xs text-forest-light font-medium mt-1">Consultas rápidas e alertas gerados.</p>
+        </div>
+        
+        <HistoricoAlertas
+          id_fazenda={id_fazenda}
+          papelUsuario={papelUsuario}
+          onAbrirUpsell={() => setModalUpsellAberto(true)}
+        />
+        
+        <section className="glass-panel rounded-2xl shadow-sm overflow-hidden border border-white/60 p-4">
+           <h3 className="text-sm font-heading font-bold text-forest-dark mb-4 flex items-center gap-2">
+             <span className="w-2 h-2 rounded-full bg-vivid-emerald animate-pulse"></span>
+             Telemetria em Tempo Real
+           </h3>
+           <div className="space-y-3">
+             <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
+               <span className="text-xs font-semibold text-forest-dark/80">Temp. Média (Lote 1)</span>
+               <span className="text-sm font-bold text-forest-dark">28.5°C</span>
+             </div>
+             <div className="flex justify-between items-center bg-white/50 p-3 rounded-xl border border-white/40 shadow-sm hover:border-vivid-emerald/30 transition-colors">
+               <span className="text-xs font-semibold text-forest-dark/80">Umidade Relativa</span>
+               <span className="text-sm font-bold text-forest-dark">65%</span>
+             </div>
+             <div className="flex justify-between items-center bg-agriAlert-red/10 p-3 rounded-xl border border-agriAlert-red/20 shadow-sm">
+               <span className="text-xs font-semibold text-agriAlert-red">Consumo Água / Hora</span>
+               <span className="text-sm font-bold text-agriAlert-red">Queda 15% 🚨</span>
+             </div>
+           </div>
+        </section>
+      </aside>
       </div>
 
       {modalUpsellAberto && (
@@ -534,7 +682,7 @@ function CardAlerta({ alerta, papelUsuario, onAbrirUpsell }) {
             onClick={handleClickBadgeBloqueado}
             className="shrink-0 rounded-full bg-agriAlert-orange/10 px-2.5 py-1 text-[10px] font-bold text-agriAlert-orange hover:bg-agriAlert-orange/20 transition-colors cursor-pointer"
           >
-            🟠 WhatsApp bloqueado (Plano Essencial)
+            🟠 WhatsApp bloqueado (Plano Standard)
           </button>
         ) : (
           <span className="shrink-0 rounded-full bg-agriAlert-orange/10 px-2.5 py-1 text-[10px] font-bold text-agriAlert-orange">🟠 Aguardando conexão (Fila offline)</span>

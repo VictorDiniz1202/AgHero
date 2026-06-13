@@ -4,7 +4,7 @@
  * Tela de "Lançamento de Manejo Diário" adaptada para Premium Glassmorphism.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   collection,
   limit,
@@ -14,9 +14,10 @@ import {
   query,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { obterFazenda, obterLotesAtivos, obterRegistroPorData, salvarAlertaEnviado, salvarRegistroDiario } from '../firebase/services';
-import { calcularIdadeDias, detectarAnomalias, dispararAlertaWhatsapp, montarPayloadAlerta } from '../utils/motorAlertas';
-import { calcularITU } from '../utils/climaPreditivo';
+import { obterFazenda, obterLotesAtivos, salvarRegistroDiario } from '../firebase/services';
+import { calcularIdadeDias } from '../utils/motorAlertas';
+import { calcularITU, obterPrevisaoClimatica } from '../utils/climaPreditivo';
+import { useConectividade } from '../hooks/useConectividade';
 
 const VALORES_INICIAIS = {
   agua_litros: 0,
@@ -45,13 +46,15 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
     dataUsar = new Date(ano, mes - 1, dia, 12, 0, 0);
   }
 
+  const { isOffline } = useConectividade();
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [valores, setValores] = useState(VALORES_INICIAIS);
   const [sincronizado, setSincronizado] = useState(true);
   const [feedback, setFeedback] = useState(null);
   const [fazendaConfig, setFazendaConfig] = useState(null);
-  const [registroAnterior, setRegistroAnterior] = useState(null);
+  const [climaIndisponivel, setClimaIndisponivel] = useState(true);
+  const camposEditadosManualmente = useRef({ temp_max: false, temp_min: false, umidade_relativa: false });
 
   const loteAtual = lotes?.find((l) => l.id === loteSelecionadoId);
   const aptidaoAtual = loteAtual?.aptidao || 'corte';
@@ -83,25 +86,70 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
     return () => { ativo = false; };
   }, [id_fazenda]);
 
-  // Pré-carrega o registro do dia anterior do lote selecionado, usado pelo
-  // motor de alertas para calcular o desvio de consumo de água/ração.
+  // Busca clima e umidade automaticamente via API em segundo plano
   useEffect(() => {
-    if (!id_fazenda || !loteSelecionadoId) {
-      setRegistroAnterior(null);
-      return undefined;
-    }
+    // Reset dos valores operacionais e climáticos ao trocar lote ou data para evitar contaminação de dados
+    setValores(VALORES_INICIAIS);
+    camposEditadosManualmente.current = { temp_max: false, temp_min: false, umidade_relativa: false };
+    setClimaIndisponivel(true);
+
+    if (!loteAtual || !fazendaConfig) return;
 
     let ativo = true;
-    const diaAnterior = new Date(dataUsar);
-    diaAnterior.setDate(diaAnterior.getDate() - 1);
+    const idadeDias = calcularIdadeDias(loteAtual.data_alojamento, dataUsar);
 
-    obterRegistroPorData(id_fazenda, loteSelecionadoId, dataRegistroStr(diaAnterior)).then((resultado) => {
-      if (ativo) setRegistroAnterior(resultado);
+    obterPrevisaoClimatica(
+      loteAtual.linhagem || 'Cobb 500',
+      idadeDias,
+      fazendaConfig.latitude,
+      fazendaConfig.longitude
+    ).then((dadosClima) => {
+      if (!ativo) return;
+
+      if (!dadosClima || !dadosClima.previsoes) {
+        setClimaIndisponivel(true);
+        return;
+      }
+
+      const dataHojeStr = dataRegistroStr(dataUsar);
+      const previsaoHoje = dadosClima.previsoes.find((p) => p.data_str === dataHojeStr);
+
+      if (previsaoHoje) {
+        setValores((atual) => {
+          const novaUmidade = previsaoHoje.umidade_media != null ? Math.round(previsaoHoje.umidade_media) : '';
+          const novaTempMax = previsaoHoje.temp_max != null ? Math.round(previsaoHoje.temp_max) : '';
+          const novaTempMin = previsaoHoje.temp_min != null ? Math.round(previsaoHoje.temp_min) : '';
+
+          return {
+            ...atual,
+            umidade_relativa: camposEditadosManualmente.current.umidade_relativa ? atual.umidade_relativa : novaUmidade,
+            temp_max: camposEditadosManualmente.current.temp_max ? atual.temp_max : novaTempMax,
+            temp_min: camposEditadosManualmente.current.temp_min ? atual.temp_min : novaTempMin,
+          };
+        });
+        setClimaIndisponivel(false);
+      } else {
+        // Sem previsão climática disponível para esta data específica
+        setClimaIndisponivel(true);
+      }
+    }).catch((err) => {
+      console.error('[FormularioManejo] Falha ao carregar clima automático:', err);
+      if (ativo) {
+        setClimaIndisponivel(true);
+      }
     });
 
-    return () => { ativo = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id_fazenda, loteSelecionadoId]);
+    return () => {
+      ativo = false;
+    };
+  }, [
+    loteSelecionadoId, 
+    fazendaConfig, 
+    dataRetroativaStr, 
+    loteAtual?.linhagem, 
+    loteAtual?.data_alojamento, 
+    dataRegistroStr(dataUsar)
+  ]);
 
   useEffect(() => {
     if (!id_fazenda) return undefined;
@@ -133,52 +181,10 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
   }, [feedback]);
 
   function atualizarCampo(campo, valor) {
+    if (campo === 'temp_max' || campo === 'temp_min' || campo === 'umidade_relativa') {
+      camposEditadosManualmente.current[campo] = true;
+    }
     setValores((atual) => ({ ...atual, [campo]: valor }));
-  }
-
-  /**
-   * Roda o motor de detecção de anomalias em segundo plano e, para cada
-   * anomalia crítica encontrada, dispara o webhook do n8n (WhatsApp) de
-   * forma não-bloqueante e registra o alerta no histórico da fazenda.
-   */
-  function processarAlertas(dadosRegistro) {
-    if (!fazendaConfig || !loteAtual) return;
-
-    const idadeDias = calcularIdadeDias(loteAtual.data_alojamento, dataUsar);
-    const anomalias = detectarAnomalias({
-      registroAtual: dadosRegistro,
-      registroAnterior,
-      lote: loteAtual,
-      fazenda: fazendaConfig,
-    });
-
-    anomalias.forEach((anomalia) => {
-      const payload = montarPayloadAlerta({
-        id_fazenda,
-        fazenda: fazendaConfig,
-        id_lote: loteSelecionadoId,
-        lote: loteAtual,
-        idadeDias,
-        anomalia,
-      });
-
-      const plano = fazendaConfig.plano || 'Essencial';
-      if (plano !== 'Inteligente' && plano !== 'Premium') {
-        salvarAlertaEnviado(id_fazenda, {
-          id_lote: loteSelecionadoId,
-          ...anomalia,
-          status_envio: 'bloqueado_plano',
-        }).catch((erro) => console.error('[FormularioManejo] Falha ao registrar alerta bloqueado:', erro));
-      } else {
-        dispararAlertaWhatsapp(payload, (status) => {
-          salvarAlertaEnviado(id_fazenda, {
-            id_lote: loteSelecionadoId,
-            ...anomalia,
-            status_envio: status,
-          }).catch((erro) => console.error('[FormularioManejo] Falha ao registrar alerta:', erro));
-        });
-      }
-    });
   }
 
   function handleSalvar() {
@@ -234,13 +240,11 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
       observacoes: valores.observacoes.trim(),
       data_registro: dataUsar,
       data_registro_str: dataRegistroStr(dataUsar),
+      clima_indisponivel: climaIndisponivel,
     }).catch((erro) => {
       console.error('[FormularioManejo] Falha ao preparar registro diário:', erro);
       setFeedback({ tipo: 'erro', mensagem: 'Não foi possível salvar o registro. Tente novamente.' });
     });
-
-    // Roda em segundo plano: nunca bloqueia o salvamento nem a UI do operador.
-    processarAlertas(dados);
 
     setValores(VALORES_INICIAIS);
     setFeedback({ tipo: 'sucesso', mensagem: 'Registro salvo com sucesso!' });
@@ -354,7 +358,14 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
             onChange={(valor) => atualizarCampo('mortalidade_qtd', valor)}
           />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            {isOffline && (
+              <div className="rounded-xl border border-agriAlert-orange/30 bg-agriAlert-orange/10 px-4 py-3 text-xs font-bold text-agriAlert-orange animate-fade-in flex items-start gap-2 shadow-sm">
+                <span className="text-sm mt-0.5">⚠️</span>
+                <p>Sincronização meteorológica suspensa (Dispositivo Offline). Insira os dados climáticos manualmente ou confie no cache.</p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
             <CampoContador
               id="temp_max"
               label="Temp. máxima"
@@ -376,17 +387,7 @@ export default function FormularioManejo({ id_fazenda, onVoltar, dataRetroativaS
               onChange={(valor) => atualizarCampo('temp_min', valor)}
             />
           </div>
-
-          <CampoContador
-            id="umidade_relativa"
-            label="Umidade Relativa"
-            unidade="%"
-            value={valores.umidade_relativa}
-            step={1}
-            min={0}
-            max={100}
-            onChange={(valor) => atualizarCampo('umidade_relativa', valor)}
-          />
+        </div>
 
           <div>
             <CampoContador

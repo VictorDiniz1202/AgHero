@@ -190,6 +190,23 @@ Use este arquivo como o Guia de Contexto e Instruções Gerais do Projeto. Ele f
   </constraint>
 </code_implementation_constraints>
 
+<multi_agent_collaboration>
+  <roles>
+    <claude>Coder Principal do Frontend &amp; CLI Integrada. Executa comandos Git, cria componentes React e roda a suíte de testes locais.</claude>
+    <gemini>Auditor Estratégico, Validador de Ideias e Guardião de Clean Code/Segurança. Valida as regras de negócio e a estrutura do banco antes da implementação.</gemini>
+  </roles>
+  <coder_auditor_loop>
+    1. Gemini (Antigravity) cria o plano de implementação.
+    2. Claude (Claude Code) audita o plano e propõe melhorias.
+    3. Após aprovação do plano, Claude escreve os testes/specs (Fase Red) e implementa a lógica de código (Fase Green).
+    4. Gemini realiza a auditoria de segurança pós-sessão de código.
+    5. O resultado é registrado na seção "Histórico de Sprints Concluídas" de roadmap_claude.md.
+  </coder_auditor_loop>
+  <custom_skills>
+    O Claude Code carrega habilidades customizadas locais. Sempre reuse as habilidades configuradas em `.claude/skills/auditoria_seguranca/` e `.claude/skills/validador_tdd/` para se guiar de forma autônoma.
+  </custom_skills>
+</multi_agent_collaboration>
+
 ---
 
 ## 🎯 Próximo Alvo: Sprints Futuras e Regras de Limpeza

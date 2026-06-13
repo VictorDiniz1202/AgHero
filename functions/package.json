@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions do Agtech — ponte Firestore -> n8n",
+  "description": "Cloud Functions do Agtech — motor de alertas (Firestore -> Evolution API) e AgBoy IA",
   "main": "index.js",
   "engines": {
     "node": "20"
@@ -12,6 +12,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@google/generative-ai": "^0.24.1",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.0.1"

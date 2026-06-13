@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { obterLotesAtivos, obterUltimosRegistros, atualizarConfiguracaoPreditiva } from "../firebase/services";
-import SidebarMenu from "./SidebarMenu";
 import { analisarRelacaoAguaRacao, calcularAutonomiaReserva, calcularConsumoMedioAgua } from "../utils/aguaPreditiva";
 
 const CAPACIDADE_AGUA_PADRAO_L = 20000;
 
-export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
+export default function DashboardAgua({ id_fazenda, papelUsuario, planoAssinatura, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -107,21 +106,7 @@ export default function DashboardAgua({ id_fazenda, papelUsuario, onVoltar, onAb
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="agua"
-        papelUsuario={papelUsuario}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+      
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">

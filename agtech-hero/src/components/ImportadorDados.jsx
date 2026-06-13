@@ -1,11 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { importarDadosLote, adicionarLote, obterLotesAtivos } from '../firebase/services';
-import SidebarMenu from './SidebarMenu';
 
 export default function ImportadorDados({ 
   id_fazenda,
-  papelUsuario,
+  papelUsuario, planoAssinatura,
   onVoltar,
   onAbrirDashboard,
   onAbrirFormulario,
@@ -27,6 +26,7 @@ export default function ImportadorDados({
   const [step, setStep] = useState(1); // 1: Upload, 2: Map, 3: Import/Preview
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resultadoImportacao, setResultadoImportacao] = useState(null);
 
   // Mapeamento: campo_sistema -> cabecalho_planilha
   const [mapping, setMapping] = useState({
@@ -217,7 +217,8 @@ export default function ImportadorDados({
         targetLoteId = novoLote.id;
       }
 
-      await importarDadosLote(id_fazenda, targetLoteId, registros, transacoes);
+      const resultado = await importarDadosLote(id_fazenda, targetLoteId, registros, transacoes);
+      setResultadoImportacao(resultado);
       setSuccess(true);
     } catch (err) {
       alert("Erro ao importar: " + err.message);
@@ -229,24 +230,7 @@ export default function ImportadorDados({
   if (success) {
     return (
       <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-        <SidebarMenu
-          menuAberto={menuAberto}
-          setMenuAberto={setMenuAberto}
-          telaAtiva="importador"
-          papelUsuario={papelUsuario}
-          onSair={onVoltar}
-          onAbrirDashboard={onAbrirDashboard}
-          onAbrirFormulario={onAbrirFormulario}
-          onAbrirLotes={onAbrirLotes}
-          onAbrirConfiguracoes={onAbrirConfiguracoes}
-          onAbrirBI={onAbrirBI}
-          onAbrirCalendario={onAbrirCalendario}
-          onAbrirNutricao={onAbrirNutricao}
-          onAbrirAgua={onAbrirAgua}
-          onAbrirFinanceiro={onAbrirFinanceiro}
-          onAbrirRelatorios={onAbrirRelatorios}
-          onAbrirImportador={onAbrirImportador}
-        />
+        
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
             <div className="flex items-center gap-4">
@@ -262,10 +246,29 @@ export default function ImportadorDados({
           </header>
           <div className="flex-1 p-8 flex flex-col items-center justify-center overflow-y-auto">
             <div className="glass-panel p-10 flex flex-col items-center max-w-lg text-center">
-              <div className="w-20 h-20 bg-vivid-emerald/20 text-vivid-emerald rounded-full flex items-center justify-center text-4xl mb-6">✅</div>
-              <h2 className="text-2xl font-bold text-forest-dark mb-4">Importação Concluída!</h2>
-              <p className="text-forest-light mb-8">Sua planilha foi processada com sucesso. Os registros diários e transações financeiras já estão contabilizados no sistema.</p>
-              <button onClick={() => { setStep(1); setSuccess(false); setFile(null); }} className="px-6 py-3 bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white rounded-xl font-bold shadow-md hover:scale-105 transition-transform">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-6 ${resultadoImportacao?.erros?.length ? 'bg-agriAlert-orange/20 text-agriAlert-orange' : 'bg-vivid-emerald/20 text-vivid-emerald'}`}>
+                {resultadoImportacao?.erros?.length ? '⚠️' : '✅'}
+              </div>
+              <h2 className="text-2xl font-bold text-forest-dark mb-4">
+                {resultadoImportacao?.erros?.length ? 'Importação Concluída com Avisos' : 'Importação Concluída!'}
+              </h2>
+              <p className="text-forest-light mb-4">
+                {resultadoImportacao?.registrosImportados ?? 0} registro(s) diário(s) e {resultadoImportacao?.transacoesImportadas ?? 0} transação(ões) financeira(s) importados com sucesso.
+              </p>
+              {resultadoImportacao?.erros?.length > 0 && (
+                <div className="w-full mb-8 text-left bg-agriAlert-orange/10 border border-agriAlert-orange/30 rounded-xl p-4 max-h-48 overflow-y-auto">
+                  <p className="text-sm font-bold text-agriAlert-orange mb-2">
+                    {resultadoImportacao.erros.length} linha(s) não puderam ser importadas:
+                  </p>
+                  <ul className="space-y-1 text-xs text-forest-dark/80">
+                    {resultadoImportacao.erros.map((e, i) => (
+                      <li key={i}>• {e.tipo === 'transacao' ? 'Transação' : 'Registro'} de {e.data_str || '(data inválida)'}: {e.mensagem}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!resultadoImportacao?.erros?.length && <div className="mb-8" />}
+              <button onClick={() => { setStep(1); setSuccess(false); setFile(null); setResultadoImportacao(null); }} className="px-6 py-3 bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white rounded-xl font-bold shadow-md hover:scale-105 transition-transform">
                 Importar Nova Planilha
               </button>
             </div>
@@ -277,24 +280,7 @@ export default function ImportadorDados({
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="importador"
-        papelUsuario={papelUsuario}
-        onSair={onVoltar}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirLotes={onAbrirLotes}
-        onAbrirConfiguracoes={onAbrirConfiguracoes}
-        onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-      />
+      
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
           <div className="flex items-center gap-4">

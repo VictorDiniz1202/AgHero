@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { obterLotesAtivos, obterUltimosRegistros, registrarCargaSilo, obterCargasSilo, atualizarConfiguracaoPreditiva } from "../firebase/services";
 import { Timestamp } from "firebase/firestore";
-import SidebarMenu from "./SidebarMenu";
 import {
   calcularNivelSilo,
   calcularDiasRestantesSilo,
@@ -19,7 +18,7 @@ function formatarDataStr(date) {
   return `${ano}-${mes}-${dia}`;
 }
 
-export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
+export default function DashboardNutricao({ id_fazenda, papelUsuario, planoAssinatura, onVoltar, onAbrirFormulario, onAbrirBI, onAbrirCalendario, onAbrirAgua, onAbrirDashboard, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -170,21 +169,7 @@ export default function DashboardNutricao({ id_fazenda, papelUsuario, onVoltar, 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       {/* --- SIDEBAR (Desktop e Mobile Drawer) --- */}
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="nutricao"
-        papelUsuario={papelUsuario}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+      
 
       {/* --- MAIN CONTENT --- */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">

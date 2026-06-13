@@ -10,12 +10,16 @@ import CalendarioManejo from "./components/CalendarioManejo";
 import GestaoFinanceira from "./components/GestaoFinanceira";
 import CentroRelatorios from "./components/CentroRelatorios";
 import ImportadorDados from "./components/ImportadorDados";
+import GradeMatricial from "./components/GradeMatricial";
 import Login from "./components/Login";
 import { auth } from "./firebase/config";
 import { obterFazendaDoUsuario, vincularColaboradorSePendente, verificarStatusOnboarding } from "./firebase/services";
 import Onboarding from "./components/Onboarding";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { useConectividade } from "./hooks/useConectividade";
+import SidebarMenu from "./components/SidebarMenu";
+import HubSincronizacao from "./components/HubSincronizacao";
 
 // ─── Hook: Scroll Reveal ────────────────────────────────────────────
 
@@ -72,7 +76,7 @@ const DashboardMockup = () => {
         <div className="p-2 sm:p-4 space-y-4 sm:space-y-6">
           <div className="flex items-center gap-2 justify-center sm:justify-start">
             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-gradient-to-br from-vivid-emerald to-vivid-teal flex items-center justify-center shadow-sm">
-              <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5"><path d="M17 8C8 10 5.9 16.17 3.82 19.34A1 1 0 0 0 5.18 20.5C7 17 9 14 15 13" /><path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" /></svg>
+              <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5"><path d="M12 21.5c-1.35-3.15-4-5.4-7.65-6.75c2.7 1.8 4.95 4.5 7.65 6.75z" /><path d="M12 21.5c2.25-4.5 6.3-7.2 10.35-8.55c-3.6 2.7-7.2 5.85-10.35 8.55z" /></svg>
             </div>
             <span className="text-sm font-heading font-bold text-forest-dark tracking-tight hidden sm:block">AgHero</span>
           </div>
@@ -88,7 +92,7 @@ const DashboardMockup = () => {
         <div className="p-2 sm:p-4 hidden sm:block">
           <div className="rounded-xl bg-gradient-to-br from-forest-dark to-forest p-3 shadow-lg">
             <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center mb-2"><span className="text-vivid-emerald text-xs">✨</span></div>
-            <p className="text-[10px] font-bold text-white mb-1">Plano Inteligente</p>
+            <p className="text-[10px] font-bold text-white mb-1">Plano Pro</p>
           </div>
         </div>
       </aside>
@@ -160,8 +164,8 @@ const Navbar = ({ onAcessarSistema }) => {
           <a href="#inicio" onClick={(e) => { e.preventDefault(); handleNav('inicio'); }} className="flex items-center gap-2 sm:gap-3 group">
             <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-vivid-emerald to-vivid-teal flex items-center justify-center shadow-[0_4px_15px_rgba(16,185,129,0.3)]">
               <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4 sm:w-5 sm:h-5">
-                <path d="M17 8C8 10 5.9 16.17 3.82 19.34A1 1 0 0 0 5.18 20.5C7 17 9 14 15 13" />
-                <path d="M12 8a4 4 0 0 1 4-4c0 4-3 6-4 6" />
+                <path d="M12 21.5c-1.35-3.15-4-5.4-7.65-6.75c2.7 1.8 4.95 4.5 7.65 6.75z" />
+                <path d="M12 21.5c2.25-4.5 6.3-7.2 10.35-8.55c-3.6 2.7-7.2 5.85-10.35 8.55z" />
               </svg>
             </div>
             <span className="text-forest-dark font-heading font-bold text-xl sm:text-2xl tracking-tight">AgHero</span>
@@ -393,7 +397,110 @@ const FeaturesSection = () => (
   </section>
 );
 
-const PricingSection = () => (
+const PlaygroundAgBoy = () => (
+  <section className="relative py-20 sm:py-28 overflow-hidden border-t border-forest-light/10">
+     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-12">
+        <div className="reveal flex-1 space-y-6">
+          <p className="text-sm font-bold text-vivid-emerald tracking-wider uppercase mb-3">Assistente de Bolso</p>
+          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-forest-dark leading-tight">Converse com sua granja via WhatsApp</h2>
+          <p className="text-forest-light font-medium text-lg">O AgBoy entende áudio, texto e cruza seus dados zootécnicos em segundos. Pergunte sobre mortalidade, ração ou alertas.</p>
+        </div>
+        <div className="reveal flex-1 flex justify-center">
+          <div className="w-[280px] h-[550px] bg-white/60 border-4 border-white/80 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col backdrop-blur-md">
+            <div className="bg-gradient-to-r from-vivid-emerald to-vivid-teal text-white p-4 pt-10 rounded-b-3xl shadow-sm z-10">
+              <h3 className="font-bold text-center text-lg">AgBoy 🤖</h3>
+            </div>
+            <div className="flex-1 p-4 space-y-4 overflow-hidden bg-offwhite/30 backdrop-blur-sm pt-6 relative">
+              <div className="absolute inset-0 bg-vivid-emerald/5 blur-3xl rounded-full"></div>
+              <div className="bg-white p-3 rounded-2xl rounded-tr-none shadow-sm text-sm border border-white/60 ml-auto w-4/5 text-forest-dark relative z-10">Qual a mortalidade do Lote 2?</div>
+              <div className="bg-vivid-emerald/10 p-3 rounded-2xl rounded-tl-none shadow-sm text-sm border border-vivid-emerald/20 mr-auto w-4/5 text-forest-dark relative z-10">A mortalidade hoje é de 0.3%. Abaixo da meta! 🎉 O lote está indo muito bem.</div>
+              <div className="bg-white p-3 rounded-2xl rounded-tr-none shadow-sm text-sm border border-white/60 ml-auto w-4/5 text-forest-dark relative z-10">E a temperatura?</div>
+              <div className="bg-vivid-emerald/10 p-3 rounded-2xl rounded-tl-none shadow-sm text-sm border border-vivid-emerald/20 mr-auto w-4/5 text-forest-dark relative z-10">Houve um pico de 32°C ao meio-dia, já reportado no sistema. 🚨</div>
+            </div>
+          </div>
+        </div>
+     </div>
+  </section>
+);
+
+const HeatmapGalpao = () => (
+  <section className="relative py-20 sm:py-28 overflow-hidden bg-forest-dark text-white">
+     <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-agriAlert-red/20 rounded-full blur-[100px] pointer-events-none" />
+     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="reveal text-center mb-12">
+          <p className="text-sm font-bold text-agriAlert-orange tracking-wider uppercase mb-3">Monitoramento 2D</p>
+          <h2 className="text-3xl sm:text-4xl font-heading font-bold leading-tight">Visão Térmica do Galpão</h2>
+          <p className="text-white/70 mt-4 max-w-2xl mx-auto text-lg">Prevenção em tempo real. Identifique zonas de risco antes que afetem o lote.</p>
+        </div>
+        <div className="reveal relative w-full max-w-4xl mx-auto h-[300px] sm:h-[400px] bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden p-6 backdrop-blur-xl flex flex-col items-center justify-center shadow-2xl">
+           <div className="w-full h-full relative border-2 border-white/20 rounded-2xl flex flex-wrap overflow-hidden">
+             {Array.from({ length: 40 }).map((_, i) => {
+               const isHot = i === 12 || i === 13 || i === 22;
+               const isWarm = i === 11 || i === 14 || i === 21 || i === 23;
+               let bgColor = 'bg-vivid-emerald/30';
+               if (isHot) bgColor = 'bg-agriAlert-red/80 animate-pulse';
+               else if (isWarm) bgColor = 'bg-agriAlert-orange/60';
+               return (
+                 <div key={i} className={`w-[10%] h-[25%] transition-colors duration-1000 border border-white/5 ${bgColor}`}></div>
+               );
+             })}
+             <div className="absolute top-[25%] left-[25%] bg-black/80 border border-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-xl">
+               <span className="w-2 h-2 rounded-full bg-agriAlert-red animate-ping"></span>
+               Ponto Quente 🚨
+             </div>
+           </div>
+        </div>
+     </div>
+  </section>
+);
+
+const CalculadoraROI = () => {
+  const [aves, setAves] = useState(50000);
+  const [mortalidadeReduzida, setMortalidadeReduzida] = useState(1);
+  const economia = aves * (mortalidadeReduzida / 100) * 15;
+
+  return (
+    <section className="relative py-20 sm:py-28 overflow-hidden bg-offwhite border-t border-forest-light/10">
+       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="reveal glass-panel p-8 sm:p-10 rounded-[2rem] shadow-xl border border-white/80 bg-white/50 relative overflow-hidden">
+             <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-vivid-emerald/20 rounded-full blur-[80px]" />
+             <div className="relative z-10 text-center mb-8">
+               <p className="text-sm font-bold text-vivid-emerald tracking-wider uppercase mb-2">ROI Transparente</p>
+               <h2 className="text-2xl sm:text-4xl font-heading font-bold text-forest-dark">Calcule seu Retorno</h2>
+             </div>
+             <div className="space-y-8 relative z-10">
+                <div className="glass-panel p-6 rounded-2xl bg-white/60 border border-white/60">
+                   <div className="flex justify-between items-center mb-4">
+                     <label className="text-sm sm:text-base font-bold text-forest-dark">Aves por Lote</label>
+                     <span className="text-lg font-bold text-vivid-emerald bg-vivid-emerald/10 px-3 py-1 rounded-lg">{aves.toLocaleString()}</span>
+                   </div>
+                   <input type="range" min="10000" max="200000" step="1000" value={aves} onChange={e => setAves(Number(e.target.value))} className="w-full h-2 bg-forest-light/20 rounded-lg appearance-none cursor-pointer accent-vivid-emerald" />
+                </div>
+                <div className="glass-panel p-6 rounded-2xl bg-white/60 border border-white/60">
+                   <div className="flex justify-between items-center mb-4">
+                     <label className="text-sm sm:text-base font-bold text-forest-dark">Redução de Mortalidade Estimada</label>
+                     <span className="text-lg font-bold text-vivid-emerald bg-vivid-emerald/10 px-3 py-1 rounded-lg">{mortalidadeReduzida.toFixed(1)}%</span>
+                   </div>
+                   <input type="range" min="0.1" max="5" step="0.1" value={mortalidadeReduzida} onChange={e => setMortalidadeReduzida(Number(e.target.value))} className="w-full h-2 bg-forest-light/20 rounded-lg appearance-none cursor-pointer accent-vivid-emerald" />
+                </div>
+                <div className="mt-8 bg-gradient-to-br from-forest-dark to-forest p-8 rounded-2xl border border-vivid-emerald/30 text-center shadow-2xl relative overflow-hidden">
+                   <div className="absolute inset-0 bg-vivid-emerald/10 mix-blend-overlay"></div>
+                   <p className="text-sm sm:text-base font-bold text-white/80 uppercase tracking-wide relative z-10">Economia Projetada por Lote</p>
+                   <p className="text-4xl sm:text-6xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-vivid-emerald to-vivid-lime mt-3 relative z-10">
+                     R$ {economia.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                   </p>
+                </div>
+             </div>
+          </div>
+       </div>
+    </section>
+  );
+};
+
+const PricingSection = ({ onAcessarSistema, onAcessarPro }) => {
+  const [planoAnual, setPlanoAnual] = useState(false);
+
+  return (
   <section id="planos" className="relative py-20 sm:py-28 overflow-hidden bg-offwhite">
     <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-vivid-lime rounded-full mix-blend-multiply filter blur-[120px] opacity-20 pointer-events-none" />
     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 w-full">
@@ -402,7 +509,22 @@ const PricingSection = () => (
           Escolha o Plano Ideal para a <br className="hidden sm:block" /> 
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-vivid-emerald to-vivid-lime">sua Granja</span>
         </h2>
-        <p className="text-sm sm:text-lg text-forest-light font-medium">Tecnologia de ponta acessível para produtores rurais de todos os tamanhos.</p>
+        <p className="text-sm sm:text-lg text-forest-light font-medium mb-8">Tecnologia de ponta acessível para produtores rurais de todos os tamanhos.</p>
+        
+        {/* Toggle */}
+        <div className="flex items-center justify-center gap-4">
+          <span className={`text-sm font-bold transition-colors ${!planoAnual ? 'text-forest-dark' : 'text-forest-light'}`}>Mensal</span>
+          <button 
+            onClick={() => setPlanoAnual(!planoAnual)}
+            className="w-14 h-7 rounded-full bg-forest-dark relative flex items-center p-1 transition-all"
+          >
+            <div className={`w-5 h-5 bg-vivid-emerald rounded-full shadow-sm transform transition-transform ${planoAnual ? 'translate-x-7' : 'translate-x-0'}`} />
+          </button>
+          <span className={`text-sm font-bold flex items-center gap-2 transition-colors ${planoAnual ? 'text-forest-dark' : 'text-forest-light'}`}>
+            Anual
+            <span className="text-[10px] bg-vivid-emerald/10 text-vivid-emerald px-2 py-0.5 rounded-full border border-vivid-emerald/20">20% OFF</span>
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-4xl mx-auto">
@@ -411,7 +533,7 @@ const PricingSection = () => (
           <div className="mb-6">
             <span className="text-sm font-bold text-forest-dark uppercase tracking-wider">Standard</span>
             <div className="mt-4 flex items-baseline text-forest-dark">
-              <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight">R$ 49,90</span>
+              <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight">R$ {planoAnual ? '39,90' : '49,90'}</span>
               <span className="text-sm font-semibold text-forest-light ml-1">/mês</span>
             </div>
             <p className="mt-2 text-sm font-medium text-forest-light">Para iniciantes na gestão digital.</p>
@@ -427,10 +549,10 @@ const PricingSection = () => (
               </li>
             ))}
           </ul>
-          <button className="w-full py-3.5 rounded-xl bg-white text-forest-dark font-bold text-sm shadow-sm border border-white/80 hover:bg-offwhite hover:border-vivid-emerald/30 transition-all mt-auto">Começar Grátis</button>
+          <button onClick={onAcessarSistema} className="w-full py-3.5 rounded-xl bg-white text-forest-dark font-bold text-sm shadow-sm border border-white/80 hover:bg-offwhite hover:border-vivid-emerald/30 transition-all mt-auto">Começar Grátis</button>
         </div>
 
-        {/* Inteligente */}
+        {/* Pro */}
         <div className="reveal relative rounded-[2rem] p-[2px] bg-gradient-to-br from-vivid-emerald to-vivid-lime shadow-[0_20px_60px_-15px_rgba(16,185,129,0.4)] transition-transform hover:-translate-y-2 z-10 flex flex-col h-full">
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 bg-forest-dark rounded-full border border-vivid-emerald/50 shadow-lg flex items-center gap-1.5">
             <svg className="w-4 h-4 text-vivid-lime drop-shadow-[0_0_8px_rgba(132,204,22,0.8)]" viewBox="0 0 24 24" fill="currentColor">
@@ -445,7 +567,7 @@ const PricingSection = () => (
             <div className="mb-6 relative z-10">
               <span className="text-sm font-bold text-vivid-emerald uppercase tracking-wider">Pro</span>
               <div className="mt-4 flex items-baseline">
-                <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-forest-dark to-forest">R$ 89,90</span>
+                <span className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-forest-dark to-forest">R$ {planoAnual ? '71,90' : '89,90'}</span>
                 <span className="text-sm font-semibold text-forest-light ml-1">/mês</span>
               </div>
               <p className="mt-2 text-sm font-medium text-forest-light">Inteligência Artificial no seu bolso.</p>
@@ -461,13 +583,14 @@ const PricingSection = () => (
                 </li>
               ))}
             </ul>
-            <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white font-bold text-sm shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_25px_-6px_rgba(132,204,22,0.6)] transition-all relative z-10 mt-auto">Assinar Agora</button>
+            <button onClick={onAcessarPro} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime text-white font-bold text-sm shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_25px_-6px_rgba(132,204,22,0.6)] transition-all relative z-10 mt-auto">Assinar Agora</button>
           </div>
         </div>
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const AboutSection = () => (
   <section id="sobre" className="relative py-20 sm:py-28 border-t border-forest-light/10 overflow-hidden">
@@ -519,7 +642,7 @@ const Footer = () => (
   </footer>
 );
 
-const PublicLanding = ({ onAcessarSistema }) => {
+const PublicLanding = ({ onAcessarSistema, onAcessarPro }) => {
   useIntersectionObserver();
   return (
     <div className="w-full">
@@ -527,7 +650,10 @@ const PublicLanding = ({ onAcessarSistema }) => {
       <HeroSection onComeçar={onAcessarSistema} />
       <ProblemSection />
       <FeaturesSection />
-      <PricingSection />
+      <PlaygroundAgBoy />
+      <HeatmapGalpao />
+      <CalculadoraROI />
+      <PricingSection onAcessarSistema={onAcessarSistema} onAcessarPro={onAcessarPro} />
       <AboutSection />
       <Footer />
     </div>
@@ -560,63 +686,118 @@ const PWABadge = () => {
   );
 };
 
-// Helper para injetar o wrapper da animação do sistema
-const SystemWrapper = ({ children, deferredPrompt, setDeferredPrompt, onInstallClick, mostrarOnboarding, setMostrarOnboarding }) => (
-  <div className="fixed inset-0 w-full h-full overflow-hidden bg-offwhite font-sans text-forest-dark system-enter flex flex-col">
-    {/* Fundo orgânico global para o sistema */}
-    <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-    <div className="absolute bottom-0 left-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-vivid-teal/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-    
-    <PWABadge />
-    {/* PWA Install Banner */}
-    {deferredPrompt && (
-      <div className="relative z-50 bg-gradient-to-r from-forest-dark to-forest text-white px-4 py-3 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 animate-slide-down">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
-            <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button onClick={() => setDeferredPrompt(null)} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white/70 hover:text-white transition-colors">Agora Não</button>
-          <button onClick={onInstallClick} className="flex-1 sm:flex-none px-4 py-2 bg-vivid-emerald hover:bg-vivid-lime text-white text-xs font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">Instalar</button>
-        </div>
-      </div>
-    )}
+const TELA_COMPONENTES = {
+  dashboard: DashboardReal,
+  lotes: GestaoLotes,
+  configuracoes: Configuracoes,
+  formulario: FormularioManejo,
+  grade: GradeMatricial,
+  bi: CentralBI,
+  calendario: CalendarioManejo,
+  nutricao: DashboardNutricao,
+  agua: DashboardAgua,
+  financeiro: GestaoFinanceira,
+  relatorios: CentroRelatorios,
+  importador: ImportadorDados
+};
 
-    {children}
-    {mostrarOnboarding && <Onboarding onFechar={() => setMostrarOnboarding(false)} />}
-  </div>
-);
+const AppShell = ({ children, telaAtual, handlers, deferredPrompt, setDeferredPrompt, onInstallClick, mostrarOnboarding, setMostrarOnboarding, papelUsuario, planoAssinatura, menuAberto, setMenuAberto, sidebarColapsada, setSidebarColapsada }) => {
+  const { isOffline, forcarSincronizacao, sincronizando } = useConectividade();
+
+  return (
+    <div className="fixed inset-0 w-full h-full overflow-hidden bg-offwhite font-sans text-forest-dark system-enter flex">
+      <SidebarMenu
+         menuAberto={menuAberto}
+         setMenuAberto={setMenuAberto}
+         telaAtiva={telaAtual}
+         onSair={handlers.onVoltar}
+         papelUsuario={papelUsuario}
+         planoAssinatura={planoAssinatura}
+         colapsada={sidebarColapsada}
+         setColapsada={setSidebarColapsada}
+         {...handlers}
+      />
+      
+      <div className="flex-1 relative flex flex-col h-full overflow-hidden transition-all duration-300">
+        <div className="absolute top-0 right-0 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-vivid-emerald/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none z-0" />
+        <div className="absolute bottom-0 left-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-vivid-teal/10 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3 pointer-events-none z-0" />
+        
+        <div className="lg:hidden flex items-center justify-between p-4 bg-white/70 backdrop-blur-md border-b border-forest-light/10 relative z-20">
+          <span className="text-xl font-heading font-bold text-forest-dark">AgHero</span>
+          <button className="p-2 text-forest-dark" onClick={() => setMenuAberto(true)}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+        </div>
+
+        <HubSincronizacao />
+
+        <PWABadge />
+        
+        {deferredPrompt && (
+          <div className="relative z-50 bg-gradient-to-r from-forest-dark to-forest text-white px-4 py-3 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 animate-slide-down">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
+                <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+              <button onClick={() => setDeferredPrompt(null)} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white/70 hover:text-white transition-colors">Agora Não</button>
+              <button onClick={onInstallClick} className="flex-1 sm:flex-none px-4 py-2 bg-vivid-emerald hover:bg-vivid-lime text-white text-xs font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">Instalar</button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-auto relative z-10 w-full h-full">
+           {children}
+        </div>
+        
+        {mostrarOnboarding && <Onboarding onFechar={() => setMostrarOnboarding(false)} />}
+      </div>
+    </div>
+  );
+};
 
 export default function AgHero() {
-  const [tela, setTela] = useState("landing");
+  const [tela, setTela] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash && hash !== 'landing' && hash !== 'login' ? hash : "landing";
+  });
   const [dataRetroativa, setDataRetroativa] = useState(null);
   const [fazendaAtiva, setFazendaAtiva] = useState(null);
   const [papelUsuario, setPapelUsuario] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
+  const [planoAssinatura, setPlanoAssinatura] = useState("Standard");
+  
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [sidebarColapsada, setSidebarColapsada] = useState(false);
 
   useEffect(() => {
-    // Escuta mudança de auth para pular login se já autenticado
-    const callback = async (user) => {
-      if (user && tela === "login") {
-        const fazenda = await obterFazendaDoUsuario(user.uid);
-        if (fazenda) {
-          setFazendaAtiva(fazenda.id_fazenda || fazenda.id);
-          setTela("dashboard");
-        }
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== tela && fazendaAtiva && hash !== 'landing' && hash !== 'login') {
+        setTela(hash);
       }
     };
-    
-    const unsubscribe = (!auth.app && typeof auth.onAuthStateChanged === 'function')
-      ? auth.onAuthStateChanged(callback)
-      : onAuthStateChanged(auth, callback);
-      
-    return () => unsubscribe();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [tela, fazendaAtiva]);
+
+  useEffect(() => {
+    if (tela && tela !== 'landing' && tela !== 'login') {
+      if (window.location.hash !== `#${tela}`) {
+        window.history.pushState(null, '', `#${tela}`);
+      }
+    } else if (tela === 'landing' || tela === 'login') {
+      if (window.location.hash) {
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    }
   }, [tela]);
 
   useEffect(() => {
@@ -629,21 +810,24 @@ export default function AgHero() {
   }, []);
 
   useEffect(() => {
-    // Listen for auth state changes to auto-load the user's farm
     const callback = async (user) => {
       if (user) {
-        // Auto-vincula o colaborador caso ele tenha sido convidado
         await vincularColaboradorSePendente(user.uid, user.email, user.displayName);
-
         const fazenda = await obterFazendaDoUsuario(user.uid);
         if (fazenda) {
-          setFazendaAtiva(fazenda.id_fazenda);
+          setFazendaAtiva(fazenda.id_fazenda || fazenda.id);
           let role = fazenda.papelColaborador || fazenda.membros?.[user.uid] || 'operator';
           if (role === 'dono') role = 'owner';
           if (role === 'peao') role = 'operator';
           setPapelUsuario(role);
+          setPlanoAssinatura(fazenda.plano || "Standard");
         }
+      } else {
+        setFazendaAtiva(null);
+        setPapelUsuario(null);
+        setPlanoAssinatura("Standard");
       }
+      setAuthReady(true);
     };
     
     const unsubscribe = (!auth.app && typeof auth.onAuthStateChanged === 'function')
@@ -652,6 +836,12 @@ export default function AgHero() {
       
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (authReady && auth.currentUser && tela === "login" && fazendaAtiva) {
+      setTela("dashboard");
+    }
+  }, [authReady, tela, fazendaAtiva]);
 
   useEffect(() => {
     const checarOnboarding = async () => {
@@ -668,40 +858,30 @@ export default function AgHero() {
     checarOnboarding();
   }, [fazendaAtiva, tela]);
 
-  // Blinda telas restritas: operadores não acessam configurações/finanças/BI
   useEffect(() => {
+    if (!authReady) return;
+    if (papelUsuario === null && tela !== "landing" && tela !== "login") {
+      setTela("login");
+      return;
+    }
     const ehOperador = papelUsuario === "peao" || papelUsuario === "operator";
     const ehOwner = papelUsuario === "dono" || papelUsuario === "owner";
 
-    if ((tela === "configuracoes" || tela === "bi") && ehOperador) {
-      setTela("dashboard");
-    }
-    if (tela === "financeiro" && !ehOwner) {
-      setTela("dashboard");
-    }
-  }, [tela, papelUsuario]);
+    if ((tela === "configuracoes" || tela === "bi") && ehOperador) setTela("dashboard");
+    if (tela === "financeiro" && !ehOwner) setTela("dashboard");
+  }, [tela, papelUsuario, authReady]);
 
   const handleAcessarSistema = () => {
-    if (fazendaAtiva) {
-      setTela("dashboard");
-    } else {
-      setTela("login");
-    }
+    if (fazendaAtiva) setTela("dashboard");
+    else setTela("login");
   };
 
   const handleInstallClick = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          // Usuário aceitou a instalação
-        }
-        setDeferredPrompt(null);
-      });
+      deferredPrompt.userChoice.then(() => setDeferredPrompt(null));
     }
   };
-
-
 
   if (tela === "login") {
     return (
@@ -715,242 +895,81 @@ export default function AgHero() {
     );
   }
 
-  if (tela === "dashboard") {
+  if (tela === "landing") {
     return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <DashboardReal
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onVoltar={() => setTela("landing")}
-          onAbrirLotes={() => setTela("lotes")}
-          onAbrirConfiguracoes={() => setTela("configuracoes")}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
+      <main className="min-h-screen bg-offwhite font-sans antialiased relative">
+        <PWABadge />
+        {deferredPrompt && (
+          <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 z-[9999] bg-gradient-to-r from-forest-dark to-forest text-white px-4 py-3 shadow-2xl rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-slide-up border border-white/20">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-vivid-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-tight">Instalar AgHero</p>
+                <p className="text-xs text-white/70">Acesse sua granja offline direto da tela inicial.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+              <button onClick={() => setDeferredPrompt(null)} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white transition-colors">Agora Não</button>
+              <button onClick={handleInstallClick} className="flex-1 sm:flex-none px-3 py-1.5 bg-vivid-emerald hover:bg-vivid-lime text-white text-xs font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]">Instalar</button>
+            </div>
+          </div>
+        )}
+        <PublicLanding onAcessarSistema={handleAcessarSistema} />
+      </main>
     );
   }
 
-  if (tela === "lotes") {
+  const ComponenteAtual = TELA_COMPONENTES[tela] || TELA_COMPONENTES["dashboard"];
+
+  if (tela === "financeiro" && (!authReady || papelUsuario === null)) {
     return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <GestaoLotes id_fazenda={fazendaAtiva} papelUsuario={papelUsuario} onVoltar={() => setTela("dashboard")} />
-      </SystemWrapper>
+      <div className="flex h-screen w-full items-center justify-center bg-offwhite">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-forest-main"></div>
+      </div>
     );
   }
 
-  if (tela === "configuracoes") {
-    if (papelUsuario === "peao" || papelUsuario === "operator") return null;
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <Configuracoes id_fazenda={fazendaAtiva} papelUsuario={papelUsuario} onVoltar={() => setTela("dashboard")} />
-      </SystemWrapper>
-    );
-  }
+  const handlersComuns = {
+    onVoltar: () => setTela("landing"),
+    onAbrirDashboard: () => setTela("dashboard"),
+    onAbrirLotes: () => setTela("lotes"),
+    onAbrirConfiguracoes: () => setTela("configuracoes"),
+    onAbrirBI: () => setTela("bi"),
+    onAbrirCalendario: () => setTela("calendario"),
+    onAbrirNutricao: () => setTela("nutricao"),
+    onAbrirAgua: () => setTela("agua"),
+    onAbrirFormulario: () => { setDataRetroativa(null); setTela("formulario"); },
+    onAbrirFinanceiro: () => setTela("financeiro"),
+    onAbrirRelatorios: () => setTela("relatorios"),
+    onAbrirImportador: () => setTela("importador"),
+    onAbrirGrade: () => setTela("grade"),
+    onLancarRetroativo: (dataStr) => { setDataRetroativa(dataStr); setTela("formulario"); }
+  };
 
-  if (tela === "formulario") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <FormularioManejo
-          id_fazenda={fazendaAtiva}
-          onVoltar={() => {
-            setTela("dashboard");
-            setDataRetroativa(null);
-          }}
-          dataRetroativaStr={dataRetroativa}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "bi") {
-    if (papelUsuario === "peao" || papelUsuario === "operator") return null;
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <CentralBI
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirLotes={() => setTela("lotes")}
-          onAbrirConfiguracoes={() => setTela("configuracoes")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "calendario") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <CalendarioManejo
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onLancarRetroativo={(dataStr) => {
-            setDataRetroativa(dataStr);
-            setTela("formulario");
-          }}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "nutricao") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <DashboardNutricao
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirLotes={() => setTela("lotes")}
-          onAbrirConfiguracoes={() => setTela("configuracoes")}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "agua") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <DashboardAgua
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirLotes={() => setTela("lotes")}
-          onAbrirConfiguracoes={() => setTela("configuracoes")}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "financeiro") {
-    if (papelUsuario !== "dono" && papelUsuario !== "owner") return null;
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <GestaoFinanceira
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "relatorios") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <CentroRelatorios
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  if (tela === "importador") {
-    return (
-      <SystemWrapper deferredPrompt={deferredPrompt} setDeferredPrompt={setDeferredPrompt} onInstallClick={handleInstallClick} mostrarOnboarding={mostrarOnboarding} setMostrarOnboarding={setMostrarOnboarding}>
-        <ImportadorDados
-          id_fazenda={fazendaAtiva}
-          papelUsuario={papelUsuario}
-          onVoltar={() => setTela("dashboard")}
-          onAbrirDashboard={() => setTela("dashboard")}
-          onAbrirFormulario={() => {
-            setDataRetroativa(null);
-            setTela("formulario");
-          }}
-          onAbrirLotes={() => setTela("lotes")}
-          onAbrirConfiguracoes={() => setTela("configuracoes")}
-          onAbrirBI={() => setTela("bi")}
-          onAbrirCalendario={() => setTela("calendario")}
-          onAbrirNutricao={() => setTela("nutricao")}
-          onAbrirAgua={() => setTela("agua")}
-          onAbrirFinanceiro={() => setTela("financeiro")}
-          onAbrirRelatorios={() => setTela("relatorios")}
-          onAbrirImportador={() => setTela("importador")}
-        />
-      </SystemWrapper>
-    );
-  }
-
-  // Renderiza a landing page única
   return (
-    <main className="min-h-screen bg-offwhite font-sans antialiased relative">
-      <PublicLanding onAcessarSistema={handleAcessarSistema} />
-    </main>
+    <AppShell
+      telaAtual={tela}
+      handlers={handlersComuns}
+      deferredPrompt={deferredPrompt}
+      setDeferredPrompt={setDeferredPrompt}
+      onInstallClick={handleInstallClick}
+      mostrarOnboarding={mostrarOnboarding}
+      setMostrarOnboarding={setMostrarOnboarding}
+      papelUsuario={papelUsuario}
+      planoAssinatura={planoAssinatura}
+      menuAberto={menuAberto}
+      setMenuAberto={setMenuAberto}
+      sidebarColapsada={sidebarColapsada}
+      setSidebarColapsada={setSidebarColapsada}
+    >
+      <ComponenteAtual
+        id_fazenda={fazendaAtiva}
+        papelUsuario={papelUsuario}
+        dataRetroativaStr={dataRetroativa}
+        {...handlersComuns}
+      />
+    </AppShell>
   );
 }

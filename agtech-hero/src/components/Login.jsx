@@ -22,7 +22,20 @@ export default function Login({ onLoginSuccess, onVoltar }) {
       if (isLogin) {
         user = await loginComEmail(email, senha);
       } else {
-        user = await criarConta(email, senha, nomeFazenda, tipoProducao);
+        let lat = null;
+        let lng = null;
+        if ("geolocation" in navigator) {
+          try {
+            const pos = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+            });
+            lat = pos.coords.latitude;
+            lng = pos.coords.longitude;
+          } catch (err) {
+            console.warn("Geolocalização não permitida ou falhou", err);
+          }
+        }
+        user = await criarConta(email, senha, nomeFazenda, tipoProducao, lat, lng);
       }
       
       // Look up farm ID

@@ -21,6 +21,7 @@ import {
   adicionarColaborador,
   removerColaborador,
   obterStatusFaturamento,
+  normalizarPlano,
 } from '../firebase/services';
 import ModalUpsell from './ModalUpsell';
 
@@ -50,14 +51,14 @@ const CARGO_BADGE_CLASSES = {
   peao: 'bg-forest-light/10 text-forest-light border border-forest-light/20',
 };
 
-export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
+export default function Configuracoes({ id_fazenda, papelUsuario, planoAssinatura, onVoltar }) {
   const ehOwner = papelUsuario === 'dono' || papelUsuario === 'owner';
   const [carregando, setCarregando] = useState(true);
   const [nome, setNome] = useState('');
   const [tipoProducao, setTipoProducao] = useState('Corte');
   const [alertasConfig, setAlertasConfig] = useState(ALERTAS_PADRAO);
   const [contatos, setContatos] = useState([]);
-  const [plano, setPlano] = useState('Essencial');
+  const [plano, setPlano] = useState('Standard');
   const [compartilharDadosIA, setCompartilharDadosIA] = useState(false);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
@@ -101,7 +102,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
         setTipoProducao(fazenda.tipo_producao ?? 'Corte');
         setAlertasConfig({ ...ALERTAS_PADRAO, ...(fazenda.alertas_config ?? {}) });
         setContatos(fazenda.contatos_autorizados ?? []);
-        setPlano(fazenda.plano ?? 'Essencial');
+        setPlano(normalizarPlano(fazenda.plano));
         setCompartilharDadosIA(fazenda.compartilhar_dados_ia ?? false);
         setLatitude(fazenda.latitude ?? '');
         setLongitude(fazenda.longitude ?? '');
@@ -558,7 +559,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
                     <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
                       <span className="text-vivid-emerald text-lg">✨</span>
                     </div>
-                    <p className="text-sm font-heading font-bold text-white uppercase tracking-wide">Plano Inteligente</p>
+                    <p className="text-sm font-heading font-bold text-white uppercase tracking-wide">Plano Pro</p>
                   </div>
 
                   <ul className="space-y-2 text-sm font-medium text-white/80">
@@ -619,7 +620,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
                       onClick={() => setModalUpsellAberto(true)}
                       className="w-full mt-4 rounded-xl bg-gradient-to-r from-vivid-emerald to-vivid-lime py-3 text-sm font-bold text-white shadow-[0_10px_25px_-8px_rgba(16,185,129,0.6)] active:scale-[0.98] transition-transform"
                     >
-                      Fazer Upgrade para o Plano Inteligente
+                      Fazer Upgrade para o Plano Pro
                     </button>
                   </div>
                 </div>
@@ -1020,7 +1021,7 @@ export default function Configuracoes({ id_fazenda, papelUsuario, onVoltar }) {
                     )}
                     {plano === 'Inteligente' && faturamentoStatus && (
                       <p className="text-xs text-forest-dark/80 font-semibold mb-4">
-                        Próxima cobrança: <span className="text-vivid-emerald">{faturamentoStatus.renovacao || 'Em breve'}</span>
+                         Próxima cobrança: <span className="text-vivid-emerald">{faturamentoStatus.renovacao || 'Em breve'}</span>
                       </p>
                     )}
                     

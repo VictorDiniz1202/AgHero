@@ -21,15 +21,19 @@ class ErrorBoundary extends React.Component {
   }
 
   handleReload = () => {
-    // Limpa caches e recarrega a página
+    // Limpa os caches do Service Worker (Workbox) ANTES de recarregar — se o
+    // reload disparasse de imediato, a página recarregada poderia ser servida
+    // pelo cache antigo antes da exclusão (`caches.delete`) terminar,
+    // reproduzindo o mesmo erro em loop. `reload(true)` é um parâmetro legado
+    // ignorado pelos navegadores atuais, por isso não é usado aqui.
     if ('caches' in window) {
-      caches.keys().then((names) => {
-        names.forEach((name) => {
-          caches.delete(name);
-        });
-      });
+      caches.keys()
+        .then((names) => Promise.all(names.map((name) => caches.delete(name))))
+        .catch((error) => console.error('[ErrorBoundary] Falha ao limpar caches:', error))
+        .finally(() => window.location.reload());
+    } else {
+      window.location.reload();
     }
-    window.location.reload(true);
   }
 
   render() {

@@ -5,13 +5,27 @@
 
 const CSV_BOM = '\uFEFF';
 
+// Caracteres que o Excel/Sheets interpretam como in\u00EDcio de f\u00F3rmula. C\u00E9lulas de
+// texto digitadas pelo usu\u00E1rio (observa\u00E7\u00F5es, produto, dosagem) que come\u00E7arem
+// com um desses caracteres recebem um ap\u00F3strofo neutralizador, prevenindo
+// CSV/Formula Injection ao abrir o relat\u00F3rio exportado.
+const PREFIXOS_FORMULA = ['=', '+', '-', '@', '\t', '\r'];
+
+function sanitizarCelula(valor) {
+  const texto = String(valor ?? '');
+  if (PREFIXOS_FORMULA.some(prefixo => texto.startsWith(prefixo))) {
+    return `'${texto}`;
+  }
+  return texto;
+}
+
 /**
  * Converte um array de objetos em string CSV.
  */
 function compilarCSV(cabecalhos, linhas) {
   const linhaCabecalho = cabecalhos.join(';');
-  const corpo = linhas.map(linha => 
-    linha.map(celula => `"${String(celula).replace(/"/g, '""')}"`).join(';')
+  const corpo = linhas.map(linha =>
+    linha.map(celula => `"${sanitizarCelula(celula).replace(/"/g, '""')}"`).join(';')
   ).join('\n');
   return `${CSV_BOM}${linhaCabecalho}\n${corpo}`;
 }

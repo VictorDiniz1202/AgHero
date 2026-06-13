@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { obterLotesAtivos, obterUltimosRegistros } from '../firebase/services';
-import SidebarMenu from './SidebarMenu';
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MESES = [
@@ -37,7 +36,7 @@ function Topbar({ setMenuAberto }) {
 
 export default function CalendarioManejo({
   id_fazenda,
-  papelUsuario,
+  papelUsuario, planoAssinatura,
   onVoltar,
   onLancarRetroativo,
   onAbrirFormulario,
@@ -138,21 +137,7 @@ export default function CalendarioManejo({
   if (lotes === null) {
     return (
       <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-        <SidebarMenu
-          menuAberto={menuAberto}
-          setMenuAberto={setMenuAberto}
-          telaAtiva="calendario"
-          papelUsuario={papelUsuario}
-          onSair={onVoltar}
-          onAbrirDashboard={onVoltar}
-          onAbrirFormulario={onAbrirFormulario}
-          onAbrirBI={onAbrirBI}
-          onAbrirNutricao={onAbrirNutricao}
-          onAbrirAgua={onAbrirAgua}
-          onAbrirFinanceiro={onAbrirFinanceiro}
-          onAbrirRelatorios={onAbrirRelatorios}
-          onAbrirImportador={onAbrirImportador}
-        />
+        
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex items-center justify-center">
@@ -166,21 +151,7 @@ export default function CalendarioManejo({
   if (lotes.length === 0) {
     return (
       <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-        <SidebarMenu
-          menuAberto={menuAberto}
-          setMenuAberto={setMenuAberto}
-          telaAtiva="calendario"
-          papelUsuario={papelUsuario}
-          onSair={onVoltar}
-          onAbrirDashboard={onVoltar}
-          onAbrirFormulario={onAbrirFormulario}
-          onAbrirBI={onAbrirBI}
-          onAbrirNutricao={onAbrirNutricao}
-          onAbrirAgua={onAbrirAgua}
-          onAbrirFinanceiro={onAbrirFinanceiro}
-          onAbrirRelatorios={onAbrirRelatorios}
-          onAbrirImportador={onAbrirImportador}
-        />
+        
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
           <Topbar setMenuAberto={setMenuAberto} />
           <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -197,21 +168,7 @@ export default function CalendarioManejo({
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="calendario"
-        papelUsuario={papelUsuario}
-        onSair={onVoltar}
-        onAbrirDashboard={onVoltar}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirBI={onAbrirBI}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-      />
+      
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <Topbar setMenuAberto={setMenuAberto} />

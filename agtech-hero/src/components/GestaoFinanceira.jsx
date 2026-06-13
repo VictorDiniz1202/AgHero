@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import SidebarMenu from "./SidebarMenu";
+import React, { useState, useEffect } from "react";
 import { functions } from "../firebase/config";
 import { httpsCallable } from "firebase/functions";
+import { registrarTransacao, obterTransacoesLote } from "../firebase/services";
 
 export default function GestaoFinanceira({
   id_fazenda,
@@ -26,6 +26,16 @@ export default function GestaoFinanceira({
   const [auditoria, setAuditoria] = useState(null);
   const [carregandoAuditoria, setCarregandoAuditoria] = useState(false);
 
+  useEffect(() => {
+    async function load() {
+      const data = await obterTransacoesLote(id_fazenda, "geral");
+      if (data && data.length > 0) {
+        setTransacoes(data.map(d => ({ ...d, data: d.data_str || d.data })));
+      }
+    }
+    if (id_fazenda) load();
+  }, [id_fazenda]);
+
   const [novaTransacao, setNovaTransacao] = useState({
     tipo: "receita",
     valor: "",
@@ -34,8 +44,8 @@ export default function GestaoFinanceira({
     descricao: ""
   });
 
-  const totalReceita = transacoes.filter(t => t.tipo === "receita").reduce((acc, t) => acc + t.valor, 0);
-  const totalDespesa = transacoes.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + t.valor, 0);
+  const totalReceita = transacoes.filter(t => t.tipo === "receita").reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
+  const totalDespesa = transacoes.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
   const lucroLiquido = totalReceita - totalDespesa;
 
   const handleAuditoriaIA = async () => {
@@ -59,45 +69,62 @@ Forneça insights de eficiência e aponte possíveis gargalos. Foque os cálculo
     }
   };
 
-  const handleSalvar = (e) => {
+  const handleSalvar = async (e) => {
     e.preventDefault();
-    if (!novaTransacao.valor || novaTransacao.valor <= 0) return;
+    if (!novaTransacao.valor || isNaN(parseFloat(novaTransacao.valor)) || parseFloat(novaTransacao.valor) <= 0) return;
     
-    setTransacoes([
-      { ...novaTransacao, id: Date.now(), valor: parseFloat(novaTransacao.valor) },
-      ...transacoes
-    ]);
-    setIsModalOpen(false);
-    setNovaTransacao({
-      tipo: "receita",
-      valor: "",
-      data: new Date().toISOString().split("T")[0],
-      categoria: "Venda",
-      descricao: ""
-    });
+    const transData = { 
+      ...novaTransacao, 
+      valor: parseFloat(novaTransacao.valor),
+      data_str: novaTransacao.data
+    };
+
+    try {
+      const res = await registrarTransacao(id_fazenda, "geral", transData);
+      setTransacoes([
+        { ...transData, id: res.id },
+        ...transacoes
+      ]);
+      setIsModalOpen(false);
+      setNovaTransacao({
+        tipo: "receita",
+        valor: "",
+        data: new Date().toISOString().split("T")[0],
+        categoria: "Venda",
+        descricao: ""
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const formatarMoeda = (valor) => {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const num = parseFloat(valor);
+    if (isNaN(num)) return "R$ 0,00";
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const formatarData = (dataVal) => {
+    if (!dataVal) return "N/A";
+    try {
+      let dateObj;
+      if (typeof dataVal.toDate === 'function') {
+        dateObj = dataVal.toDate();
+      } else if (dataVal.seconds) {
+        dateObj = new Date(dataVal.seconds * 1000);
+      } else {
+        dateObj = new Date(dataVal);
+      }
+      if (isNaN(dateObj.getTime())) return "Data inválida";
+      return dateObj.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+    } catch (e) {
+      return "Data inválida";
+    }
   };
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="financeiro"
-        papelUsuario={papelUsuario}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirBI={onAbrirBI}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+      
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <header className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">
@@ -206,7 +233,7 @@ Forneça insights de eficiência e aponte possíveis gargalos. Foque os cálculo
                       transacoes.map((t) => (
                         <tr key={t.id} className="border-b border-white/50 hover:bg-white/40 transition-colors">
                           <td className="py-3 px-4 text-forest-dark font-medium whitespace-nowrap">
-                            {new Date(t.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                            {formatarData(t.data)}
                           </td>
                           <td className="py-3 px-4 text-forest-dark">
                             <span className="bg-white/60 px-2 py-1 rounded-md text-[10px] font-bold uppercase border border-white/80 shadow-sm">

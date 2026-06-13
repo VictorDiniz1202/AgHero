@@ -2,30 +2,19 @@ import React, { useState, useEffect } from "react";
 import { obterLotesAtivos, obterRegistrosDiarios, obterRegistrosSanitarios, registrarExportacao } from "../firebase/services";
 import { gerarCSV } from "../utils/exportadorDados";
 import { auth } from "../firebase/config";
-import SidebarMenu from "./SidebarMenu";
+import { useConectividade } from "../hooks/useConectividade";
 
 export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, onAbrirDashboard, onAbrirFormulario, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirImportador }) {
   const [lotes, setLotes] = useState([]);
   const [loteSelecionado, setLoteSelecionado] = useState("");
   const [tipoRelatorio, setTipoRelatorio] = useState("Completo");
   const [gerando, setGerando] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const { isOffline } = useConectividade();
   const [menuAberto, setMenuAberto] = useState(false);
 
   // Estados de dados da tabela
   const [registros, setRegistros] = useState({ diarios: [], sanitarios: [] });
   const [carregandoDados, setCarregandoDados] = useState(false);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
 
   useEffect(() => {
     if (id_fazenda) {
@@ -37,18 +26,25 @@ export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, o
   }, [id_fazenda]);
 
   useEffect(() => {
+    let ativo = true;
     if (id_fazenda && loteSelecionado) {
       setCarregandoDados(true);
       Promise.all([
         obterRegistrosDiarios(id_fazenda, loteSelecionado),
         obterRegistrosSanitarios(id_fazenda, loteSelecionado)
       ]).then(([diarios, sanitarios]) => {
-        setRegistros({ diarios, sanitarios });
-        setCarregandoDados(false);
+        if (ativo) {
+          setRegistros({ diarios, sanitarios });
+          setCarregandoDados(false);
+        }
       });
     } else {
       setRegistros({ diarios: [], sanitarios: [] });
+      setCarregandoDados(false);
     }
+    return () => {
+      ativo = false;
+    };
   }, [id_fazenda, loteSelecionado]);
 
   const loteData = lotes.find(l => l.id === loteSelecionado) || {};
@@ -84,21 +80,7 @@ export default function CentroRelatorios({ id_fazenda, papelUsuario, onVoltar, o
 
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="relatorios"
-        papelUsuario={papelUsuario}
-        onAbrirDashboard={onAbrirDashboard}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+      
       
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
         <header className="no-print flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 bg-white/30 backdrop-blur-md border-b border-white/50 z-30">

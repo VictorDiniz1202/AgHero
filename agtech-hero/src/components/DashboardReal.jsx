@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { obterLotesAtivos, obterUltimosRegistros, obterFazenda, obterRegistrosSanitarios, obterAlertasEnviados } from "../firebase/services";
+import { obterLotesAtivos, obterUltimosRegistros, obterFazenda, obterRegistrosSanitarios, obterAlertasEnviados, normalizarPlano } from "../firebase/services";
 import { VACINAS_PADRAO, obterVacinasAtrasadas, calcularIdadeLote } from "./ManejoSanitario";
 import { Timestamp, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/config";
 import ModalUpsell from "./ModalUpsell";
 import { obterPrevisaoClimatica, calcularITU } from "../utils/climaPreditivo";
-import SidebarMenu from "./SidebarMenu";
 import { DIRETRIZES_ZOOTECNICAS } from "../data/DiretrizesZootecnicas";
 
 // --- Tabelas Zootécnicas Oficiais ---
@@ -374,7 +373,7 @@ function classificarITU(itu) {
   return { nivel: 'confortavel', label: 'Confortável', corTexto: 'text-vivid-emerald', corFundo: 'bg-vivid-emerald/10', corBorda: 'border-vivid-emerald/30', pulsante: false };
 }
 
-export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador }) {
+export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormulario, onVoltar, onAbrirLotes, onAbrirConfiguracoes, onAbrirBI, onAbrirCalendario, onAbrirNutricao, onAbrirAgua, onAbrirFinanceiro, onAbrirRelatorios, onAbrirImportador, querPagarPro, onResetQuerPagarPro }) {
   const [lotes, setLotes] = useState(null);
   const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
   const [historico, setHistorico] = useState([]);
@@ -392,6 +391,13 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   const [registrosSanitarios, setRegistrosSanitarios] = useState([]);
   const [vacinaAberta, setVacinaAberta] = useState(null);
   const [planoFazenda, setPlanoFazenda] = useState('Essencial');
+
+  useEffect(() => {
+    if (querPagarPro && (papelUsuario === 'owner' || papelUsuario === 'dono')) {
+      setModalUpsellAberto(true);
+      if (onResetQuerPagarPro) onResetQuerPagarPro();
+    }
+  }, [querPagarPro, papelUsuario, onResetQuerPagarPro]);
 
   // Carrega os lotes ativos
   useEffect(() => {
@@ -824,7 +830,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   // Verifica se há, nas últimas 24h, algum alerta da IA para o lote ativo que
   // não pôde ser enviado ao WhatsApp por restrição de plano.
   const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000;
-  const alertaBloqueadoCritico = planoFazenda !== 'Inteligente' && alertasRecentes.find((alerta) => {
+  const alertaBloqueadoCritico = normalizarPlano(planoFazenda) !== 'Inteligente' && alertasRecentes.find((alerta) => {
     if (alerta.status_envio !== 'bloqueado_plano') return false;
     if (alerta.id_lote !== loteSelecionadoId) return false;
     const dataEnvio = typeof alerta.data_envio?.toDate === 'function' ? alerta.data_envio.toDate() : null;
@@ -874,21 +880,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
   return (
     <div className="flex h-full w-full bg-offwhite text-forest-dark relative z-10 overflow-hidden font-sans">
       {/* --- SIDEBAR (Desktop e Mobile Drawer) --- */}
-      <SidebarMenu
-        menuAberto={menuAberto}
-        setMenuAberto={setMenuAberto}
-        telaAtiva="dashboard"
-        papelUsuario={papelUsuario}
-        onAbrirFormulario={onAbrirFormulario}
-        onAbrirNutricao={onAbrirNutricao}
-        onAbrirAgua={onAbrirAgua}
-        onAbrirBI={onAbrirBI}
-        onAbrirCalendario={onAbrirCalendario}
-        onAbrirFinanceiro={onAbrirFinanceiro}
-        onAbrirRelatorios={onAbrirRelatorios}
-        onAbrirImportador={onAbrirImportador}
-        onSair={onVoltar}
-      />
+      
 
       {/* --- MAIN CONTENT --- */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white/20">
@@ -1012,7 +1004,7 @@ export default function DashboardReal({ id_fazenda, papelUsuario, onAbrirFormula
               <span className="text-2xl shrink-0">⚠️</span>
               <p className="text-xs sm:text-sm font-bold text-agriAlert-red leading-relaxed">
                 Anomalia Crítica Detectada! A IA detectou desvios no Lote {loteAtual?.linhagem || ""} hoje.{' '}
-                <span className="underline decoration-2 underline-offset-2">Clique aqui para ativar o Plano Inteligente</span>{' '}
+                <span className="underline decoration-2 underline-offset-2">Clique aqui para ativar o Plano Pro</span>{' '}
                 e liberar o envio automático via WhatsApp para seu veterinário.
               </p>
             </button>

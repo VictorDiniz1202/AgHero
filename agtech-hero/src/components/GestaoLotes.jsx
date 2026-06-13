@@ -16,6 +16,16 @@ function formatarData(valor) {
   return date.toLocaleDateString('pt-BR');
 }
 
+// Retorna a data local de hoje no formato "AAAA-MM-DD" (para <input type="date">).
+// Evita usar `.toISOString()`, que converte para UTC e "pula" para o dia
+// seguinte entre 21h e 23h59 no horário de Brasília (UTC-3).
+function dataLocalStr(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 // --- Sub-componentes da Ficha de Fechamento ---
 
 const MetricaFicha = ({ label, value, destaque }) => (
@@ -39,7 +49,7 @@ const CardFinanceiro = ({ label, value, cor }) => {
   );
 };
 
-export default function GestaoLotes({ id_fazenda, papelUsuario, onVoltar }) {
+export default function GestaoLotes({ id_fazenda, papelUsuario, planoAssinatura, onVoltar }) {
   const ehPeao = papelUsuario === "peao" || papelUsuario === "operator";
   const [lotesAtivos, setLotesAtivos] = useState([]);
   const [lotesInativos, setLotesInativos] = useState([]);
@@ -50,12 +60,13 @@ export default function GestaoLotes({ id_fazenda, papelUsuario, onVoltar }) {
   const [aptidao, setAptidao] = useState("corte");
   const [linhagem, setLinhagem] = useState("Cobb 500");
   const [quantidade, setQuantidade] = useState("");
-  const [dataAlojamento, setDataAlojamento] = useState(new Date().toISOString().split("T")[0]);
+  const [dataAlojamento, setDataAlojamento] = useState(dataLocalStr(new Date()));
   const [frequenciaPesagem, setFrequenciaPesagem] = useState("semanal");
   const [diasPersonalizados, setDiasPersonalizados] = useState("7,14,21,28,35,42,49");
   const [custoAve, setCustoAve] = useState("");
   const [custoRacao, setCustoRacao] = useState("");
   const [precoVenda, setPrecoVenda] = useState("");
+  const [areaGalpao, setAreaGalpao] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   // Modal de confirmação
@@ -96,6 +107,7 @@ export default function GestaoLotes({ id_fazenda, papelUsuario, onVoltar }) {
         quantidade_inicial: parseInt(quantidade),
         data_alojamento: Timestamp.fromDate(dataObj),
         frequencia_pesagem: frequenciaPesagem,
+        area_galpao_m2: areaGalpao ? parseFloat(areaGalpao) : null,
         financeiro: {
           custo_ave: parseFloat(custoAve) || 0,
           custo_racao: parseFloat(custoRacao) || 0,
@@ -121,6 +133,7 @@ export default function GestaoLotes({ id_fazenda, papelUsuario, onVoltar }) {
       setCustoAve("");
       setCustoRacao("");
       setPrecoVenda("");
+      setAreaGalpao("");
       await carregarDados();
     } catch (error) {
       console.error("Erro ao criar lote:", error);
@@ -279,6 +292,17 @@ export default function GestaoLotes({ id_fazenda, papelUsuario, onVoltar }) {
                     value={dataAlojamento}
                     onChange={e => setDataAlojamento(e.target.value)}
                     className="w-full bg-white/50 border border-white/60 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-vivid-emerald transition-all text-forest-dark"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-forest-light uppercase tracking-widest pl-1">Área do Galpão (m²)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 1000"
+                    value={areaGalpao}
+                    onChange={e => setAreaGalpao(e.target.value)}
+                    className="w-full bg-white/50 border border-white/60 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-vivid-emerald transition-all text-forest-dark placeholder-forest-light/40"
                   />
                 </div>
                 {/* Planejador de Pesagens */}

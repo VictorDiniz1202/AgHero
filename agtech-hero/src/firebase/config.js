@@ -16,14 +16,15 @@
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
   getFirestore,
+  connectFirestoreEmulator
 } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1. Configuração do projeto Firebase
@@ -63,6 +64,13 @@ let auth;
 try {
   auth = getAuth(app);
 } catch (error) {
+  if (import.meta.env.PROD) {
+    // Em produção, jamais mascarar falha de inicialização do Auth com um
+    // usuário fake — isso "autenticaria" qualquer visitante como
+    // dono_demo_123 e exporia a fazenda de demonstração. Deixe o erro
+    // propagar para o ErrorBoundary.
+    throw error;
+  }
   console.warn('[Firebase Auth] Falha ao inicializar Auth (API Key inválida/ausente). Usando mock para desenvolvimento local.', error);
   // Mock mínimo para o app de demonstração carregar sem tela branca
   auth = {
@@ -134,6 +142,21 @@ try {
   console.warn('[Firebase Functions] Erro ao inicializar Functions. Usando mock.', error);
 }
 export const functions = functionsInstance;
+
+if (import.meta.env.VITE_USE_EMULATORS === 'true') {
+  console.log('[Firebase] Conectando aos emuladores locais...');
+  // AVISO: O IndexedDB persiste o estado do Firestore baseado no projectId.
+  // Como a persistência foi ativada antes da conexão com o emulador, dados mockados
+  // podem vazar para o cache de produção (ou vice-versa) se o projectId for o mesmo.
+  // Dica: Limpe os dados do site no navegador ou use um projectId distinto para o emulador.
+  try {
+    if (auth) connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    if (functionsInstance) connectFunctionsEmulator(functionsInstance, '127.0.0.1', 5001);
+  } catch (error) {
+    console.warn('[Firebase] Erro ao conectar emuladores (talvez já conectados?):', error);
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // 5. Exports

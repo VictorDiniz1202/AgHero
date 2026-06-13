@@ -5,7 +5,7 @@ import { auth } from '../firebase/config';
 /**
  * src/components/ModalUpsell.jsx
  *
- * Modal de conversão comercial (Plano Essencial -> Plano Inteligente).
+ * Modal de conversão comercial (Plano Standard -> Plano Pro).
  * Extraído de Configuracoes.jsx para ser reutilizado pelos gatilhos de
  * upsell do CentralBI (badge de alerta bloqueado) e do DashboardReal
  * (banner de anomalia crítica).
@@ -64,7 +64,7 @@ export default function ModalUpsell({ id_fazenda, onFechar }) {
                 <span className="text-vivid-emerald text-2xl">✨</span>
               </div>
               <div>
-                <h3 className="text-lg font-heading font-bold text-white">Plano Inteligente</h3>
+                <h3 className="text-lg font-heading font-bold text-white">Plano Pro</h3>
                 <p className="mt-2 text-sm font-medium text-white/75 leading-relaxed">
                   Ative a IA preditiva, alertas explicativos e disparos diretos no WhatsApp do veterinário.
                 </p>
@@ -82,7 +82,7 @@ export default function ModalUpsell({ id_fazenda, onFechar }) {
                       Acessando Checkout Seguro...
                     </>
                   ) : (
-                    "Ativar Plano Inteligente"
+                    "Ativar Plano Pro"
                   )}
                 </button>
                 
@@ -109,15 +109,31 @@ export default function ModalUpsell({ id_fazenda, onFechar }) {
       {simuladorAberto && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-md p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center space-y-5 shadow-2xl">
-            <div>
-              <h3 className="text-lg font-heading font-bold text-forest-dark">Simulador de Gateway</h3>
-              <p className="mt-1 text-xs font-medium text-forest-light">Ambiente de testes (Sandbox).</p>
-            </div>
-            <button 
-              onClick={handleSimularPagamento} 
-              className="w-full rounded-xl bg-vivid-emerald py-3 text-sm font-bold text-white shadow-md active:scale-95 transition-transform"
+            {import.meta.env.DEV ? (
+              <>
+                <div>
+                  <h3 className="text-lg font-heading font-bold text-forest-dark">Simulador de Gateway</h3>
+                  <p className="mt-1 text-xs font-medium text-forest-light">Ambiente de testes (Sandbox) — disponível apenas em desenvolvimento.</p>
+                </div>
+                <button
+                  onClick={handleSimularPagamento}
+                  className="w-full rounded-xl bg-vivid-emerald py-3 text-sm font-bold text-white shadow-md active:scale-95 transition-transform"
+                >
+                  Confirmar Pagamento Simulado
+                </button>
+              </>
+            ) : (
+              <div>
+                <h3 className="text-lg font-heading font-bold text-forest-dark">Checkout em implantação</h3>
+                <p className="mt-1 text-xs font-medium text-forest-light">O pagamento online estará disponível em breve. Fale com o suporte para ativar o Plano Pro.</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setSimuladorAberto(false)}
+              className="w-full rounded-xl bg-forest-dark/5 py-3 text-sm font-bold text-forest-dark/70 active:scale-95 transition-transform"
             >
-              Confirmar Pagamento Simulado
+              Fechar
             </button>
           </div>
         </div>
